@@ -14,9 +14,9 @@ public struct MainWindowView: View {
                         .font(.system(size: 20))
                         .foregroundColor(.accentColor)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Personal Task AI")
-                            .font(.system(size: 15, weight: .bold))
-                        Text("macOS & AI Assistant")
+                        Text("Waan")
+                            .font(.system(size: 16, weight: .bold))
+                        Text("Personal Task Manager")
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
                     }
@@ -55,7 +55,7 @@ public struct MainWindowView: View {
                             .foregroundColor(.primary)
                     }
 
-                    Text("~/.personaltaskai/tasks.db พร้อมเชื่อมต่อกับ Claude, Cursor, MCP")
+                    Text("~/.waan/tasks.db พร้อมเชื่อมต่อกับ Claude, Cursor, MCP")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                         .lineLimit(2)
@@ -212,14 +212,14 @@ struct AIGuideSheetView: View {
 
             Divider()
 
-            Text("Personal Task AI เก็บข้อมูลลงใน SQLite ที่ **~/.personaltaskai/tasks.db** ทำให้ AI Harness ทุกตัวสามารถอ่านและสั่งงานเข้ามาได้ทันที:")
+            Text("Waan เก็บข้อมูลลงใน SQLite ที่ **~/.waan/tasks.db** ทำให้ AI Harness ทุกตัวสามารถอ่านและสั่งงานเข้ามาได้ทันที:")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("1. สั่งงานผ่าน CLI Command (เร็วที่สุด):")
                     .font(.system(size: 12, weight: .semibold))
-                Text("`./bin/taskai add \"เตรียมสไลด์นำเสนอ\" --due today --priority high`")
+                Text("`./bin/waan add \"เตรียมสไลด์นำเสนอ\" --due today --priority high`")
                     .font(.system(size: 11, design: .monospaced))
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -229,7 +229,7 @@ struct AIGuideSheetView: View {
                 Text("2. เชื่อมต่อ Claude Desktop / Cursor ผ่าน MCP:")
                     .font(.system(size: 12, weight: .semibold))
                     .padding(.top, 4)
-                Text("เรียกใช้ `mcp_server.py` ในโฟลเดอร์นี้ เพื่อให้ Claude เรียกใช้งาน Tool `taskai_add_task`, `taskai_list_tasks` ได้ด้วย subscription ของคุณ")
+                Text("เรียกใช้ `mcp_server.py` ในโฟลเดอร์นี้ เพื่อให้ Claude เรียกใช้งาน Tool `waan_add_task`, `waan_list_tasks` ได้ด้วย subscription ของคุณ")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

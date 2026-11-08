@@ -1,4 +1,4 @@
-# ✦ Personal Task AI - Native macOS Task Manager
+# ✦ Waan - Native macOS Task Manager
 
 แอปจัดการงานส่วนตัว (Personal Task Management) แบบ **Native macOS (SwiftUI)** ออกแบบมาให้ทำงานร่วมกับ **AI Harness (เช่น Claude Desktop, Cursor, หรือ AI Agent อื่นๆ)** ผ่าน **Subscription** โดยตรง ไม่ต้องเสียค่า API Token รายครั้ง
 
@@ -10,7 +10,7 @@
    * **Menu Bar Extra:** ไอคอนบนแถบเมนูด้านบนข้างนาฬิกา กดคลิกเดียวดูงานวันนี้ และมี Quick Input พิมพ์งานด่วนได้ทันที
    * **Main Window:** หน้าต่างแอปเต็ม มีแถบด้านข้าง (Sidebar) แยกหมวดหมู่งาน (*วันนี้, ทั้งหมด, ยังไม่เสร็จ, สำคัญมาก, เสร็จแล้ว*), ช่องค้นหา, และการ์ดแสดงขั้นตอนย่อย (Subtasks)
 2. **SQLite Database พร้อมโหมด WAL:**
-   * ฐานข้อมูลเก็บอยู่ในเครื่องที่ `~/Library/Application Support/PersonalTaskAI/tasks.db` (มี Shortcut อยู่ที่ `~/.personaltaskai/tasks.db`)
+   * ฐานข้อมูลเก็บอยู่ในเครื่องที่ `~/Library/Application Support/Waan/tasks.db` (มี Shortcut อยู่ที่ `~/.waan/tasks.db`)
    * ปลอดภัย 100%, รวดเร็วระดับเสี้ยววินาที, รองรับการเขียนพร้อมกันระหว่างแอป Mac และ AI Harness
 3. **Real-time Live Sync (File Watcher):**
    * เมื่อ AI สั่งเพิ่มหรือแก้งาน หน้าต่างแอปจะอัปเดตงานใหม่ขึ้นมาให้เห็นทันทีโดยไม่ต้องกดรีเฟรช
@@ -21,7 +21,7 @@
 
 เปิดแอปบน Mac ด้วยคำสั่ง:
 ```bash
-open "Personal Task AI.app"
+open Waan.app
 ```
 *(ไอคอนจะปรากฏบนแถบเมนูด้านบนข้างนาฬิกา และคุณสามารถกดเปิดหน้าต่างเต็มได้ตลอดเวลา)*
 
@@ -36,7 +36,7 @@ open "Personal Task AI.app"
 ```json
 {
   "mcpServers": {
-    "personaltask-ai": {
+    "waan": {
       "command": "python3",
       "args": ["/Users/hqit52mb/Documents/PM/mcp_server.py"]
     }
@@ -45,35 +45,35 @@ open "Personal Task AI.app"
 ```
 
 เมื่อเชื่อมต่อแล้ว คุณสามารถสั่ง Claude ใน Claude Desktop ได้ทันที เช่น:
-* *"ช่วยดูงานค้างใน Personal Task AI ให้หน่อย"*
-* *"พรุ่งนี้บ่ายสองมีนัดตรวจงานดีไซน์ ช่วยเพิ่มลงใน Personal Task AI แบบสำคัญมาก"*
+* *"ช่วยดูงานค้างใน Waan ให้หน่อย"*
+* *"พรุ่งนี้บ่ายสองมีนัดตรวจงานดีไซน์ ช่วยเพิ่มลงใน Waan แบบสำคัญมาก"*
 * *"ช่วยแตกขั้นตอนย่อยของงานวางแผนโปรเจกต์ให้หน่อย"*
 
 ---
 
-### วิธีที่ 2: สั่งผ่าน CLI Command (`bin/taskai`)
+### วิธีที่ 2: สั่งผ่าน CLI Command (`bin/waan`)
 
 คำสั่ง Terminal ที่คุณหรือ AI Script สามารถเรียกใช้ได้ทันที:
 
 ```bash
 # เพิ่มงานใหม่
-./bin/taskai add "เตรียมสไลด์นำเสนอ" --due today --priority high
+./bin/waan add "เตรียมสไลด์นำเสนอ" --due today --priority high
 
 # เพิ่มงานพร้อมขั้นตอนย่อย (Subtasks)
-./bin/taskai add "วางแผนท่องเที่ยวญี่ปุ่น" --subtasks "จองตั๋วเครื่องบิน, จองโรงแรม, แลกเงินเยน"
+./bin/waan add "วางแผนท่องเที่ยวญี่ปุ่น" --subtasks "จองตั๋วเครื่องบิน, จองโรงแรม, แลกเงินเยน"
 
 # ดูรายการงาน
-./bin/taskai list
-./bin/taskai list --json
+./bin/waan list
+./bin/waan list --json
 
 # ติ๊กงานว่าเสร็จแล้ว
-./bin/taskai done "สไลด์"
+./bin/waan done "สไลด์"
 
 # แตกขั้นตอนย่อยในงานที่มีอยู่
-./bin/taskai breakdown "สไลด์" "หาข้อมูลคู่แข่ง" "ร่างโครงสร้าง 5 สไลด์" "ออกแบบกราฟิก"
+./bin/waan breakdown "สไลด์" "หาข้อมูลคู่แข่ง" "ร่างโครงสร้าง 5 สไลด์" "ออกแบบกราฟิก"
 
 # ลบงาน
-./bin/taskai delete "สไลด์"
+./bin/waan delete "สไลด์"
 ```
 
 ---

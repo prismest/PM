@@ -9,22 +9,22 @@ public final class DatabaseManager: @unchecked Sendable {
     public static let shared = DatabaseManager()
 
     private var db: OpaquePointer?
-    private let queue = DispatchQueue(label: "com.personaltaskai.database", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.waan.database", qos: .userInitiated)
 
     public let dbPath: String
 
     private init() {
-        // Prepare storage directory at ~/Library/Application Support/PersonalTaskAI
+        // Prepare storage directory at ~/Library/Application Support/Waan
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("PersonalTaskAI", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("Waan", isDirectory: true)
 
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let fileUrl = dir.appendingPathComponent("tasks.db")
         self.dbPath = fileUrl.path
 
-        // Create symlink ~/.personaltaskai -> ~/Library/Application Support/PersonalTaskAI for easy CLI/AI access
+        // Create symlink ~/.waan -> ~/Library/Application Support/Waan for easy CLI/AI access
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
-        let dotPath = homeDir.appendingPathComponent(".personaltaskai")
+        let dotPath = homeDir.appendingPathComponent(".waan")
         if !FileManager.default.fileExists(atPath: dotPath.path) {
             try? FileManager.default.createSymbolicLink(at: dotPath, withDestinationURL: dir)
         }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Personal Task AI - MCP Server (Model Context Protocol)
+Waan - MCP Server (Model Context Protocol)
 Zero-dependency stdio server for Claude Desktop, Cursor, and any MCP-compatible AI Harness.
 """
 import sys
@@ -10,7 +10,7 @@ import sqlite3
 import uuid
 from datetime import datetime, date
 
-DB_DIR = os.path.expanduser("~/Library/Application Support/PersonalTaskAI")
+DB_DIR = os.path.expanduser("~/Library/Application Support/Waan")
 DB_PATH = os.path.join(DB_DIR, "tasks.db")
 
 def get_db():
@@ -21,8 +21,8 @@ def get_db():
 
 TOOLS = [
     {
-        "name": "taskai_add_task",
-        "description": "เพิ่มงานใหม่ลงในแอป Personal Task AI บนเครื่อง Mac พร้อมกำหนดวันเวลา ความสำคัญ และข้อย่อย",
+        "name": "waan_add_task",
+        "description": "เพิ่มงานใหม่ลงในแอป Waan บนเครื่อง Mac พร้อมกำหนดวันเวลา ความสำคัญ และข้อย่อย",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -44,8 +44,8 @@ TOOLS = [
         }
     },
     {
-        "name": "taskai_list_tasks",
-        "description": "ดูรายการงานทั้งหมดใน Personal Task AI บนเครื่อง Mac",
+        "name": "waan_list_tasks",
+        "description": "ดูรายการงานทั้งหมดใน Waan บนเครื่อง Mac",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -54,7 +54,7 @@ TOOLS = [
         }
     },
     {
-        "name": "taskai_complete_task",
+        "name": "waan_complete_task",
         "description": "ทำเครื่องหมายว่างานเสร็จสิ้นแล้ว (Done)",
         "inputSchema": {
             "type": "object",
@@ -65,7 +65,7 @@ TOOLS = [
         }
     },
     {
-        "name": "taskai_breakdown_task",
+        "name": "waan_breakdown_task",
         "description": "แตกงานที่มีอยู่ให้มีขั้นตอนย่อย (Subtasks)",
         "inputSchema": {
             "type": "object",
@@ -81,7 +81,7 @@ TOOLS = [
         }
     },
     {
-        "name": "taskai_delete_task",
+        "name": "waan_delete_task",
         "description": "ลบงานออกจากระบบ",
         "inputSchema": {
             "type": "object",
@@ -97,7 +97,7 @@ def handle_tool_call(name, args):
     conn = get_db()
     cursor = conn.cursor()
 
-    if name == "taskai_add_task":
+    if name == "waan_add_task":
         title = args.get("title")
         due = args.get("due_date")
         if due == "today":
@@ -121,7 +121,7 @@ def handle_tool_call(name, args):
         conn.close()
         return f"เพิ่มงาน '{title}' สำเร็จ (ID: {task_id[:8]}...)"
 
-    elif name == "taskai_list_tasks":
+    elif name == "waan_list_tasks":
         status = args.get("status", "pending")
         if status == "all":
             cursor.execute("SELECT id, title, due_date, priority, status, subtasks_json, tags_json FROM tasks ORDER BY created_at DESC")
@@ -145,7 +145,7 @@ def handle_tool_call(name, args):
             })
         return json.dumps(tasks, ensure_ascii=False, indent=2)
 
-    elif name == "taskai_complete_task":
+    elif name == "waan_complete_task":
         target = args.get("target")
         cursor.execute("SELECT id, title FROM tasks WHERE id = ? OR title LIKE ? LIMIT 1", (target, f"%{target}%"))
         row = cursor.fetchone()
@@ -159,7 +159,7 @@ def handle_tool_call(name, args):
         conn.close()
         return f"งาน '{title}' ทำเครื่องหมายว่าเสร็จสิ้นแล้ว"
 
-    elif name == "taskai_breakdown_task":
+    elif name == "waan_breakdown_task":
         target = args.get("target")
         new_subtasks = args.get("subtasks", [])
         cursor.execute("SELECT id, title, subtasks_json FROM tasks WHERE id = ? OR title LIKE ? LIMIT 1", (target, f"%{target}%"))
@@ -176,7 +176,7 @@ def handle_tool_call(name, args):
         conn.close()
         return f"เพิ่มขั้นตอนย่อย {len(new_subtasks)} รายการลงในงาน '{title}' เรียบร้อย"
 
-    elif name == "taskai_delete_task":
+    elif name == "waan_delete_task":
         target = args.get("target")
         cursor.execute("SELECT id, title FROM tasks WHERE id = ? OR title LIKE ? LIMIT 1", (target, f"%{target}%"))
         row = cursor.fetchone()
@@ -212,7 +212,7 @@ def main():
                 "result": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "personaltask-ai-mcp", "version": "1.0.0"}
+                    "serverInfo": {"name": "waan-mcp", "version": "1.0.0"}
                 }
             }
             sys.stdout.write(json.dumps(resp) + "\n")

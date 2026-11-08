@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "PersonalTaskAI",
+    name: "Waan",
     platforms: [
         .macOS(.v14)
     ],
     targets: [
         .executableTarget(
-            name: "PersonalTaskAI"
+            name: "Waan"
         ),
     ]
 )

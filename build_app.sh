@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🔨 Building Personal Task AI (Swift Release Build)..."
+echo "🔨 Building Waan (Swift Release Build)..."
 swift build -c release
 
-APP_EXEC="PersonalTaskAI"
-APP_NAME="Personal Task AI"
+APP_EXEC="Waan"
+APP_NAME="Waan"
 APP_DIR="${APP_NAME}.app"
 MACOS_DIR="${APP_DIR}/Contents/MacOS"
 RESOURCES_DIR="${APP_DIR}/Contents/Resources"
@@ -25,13 +25,13 @@ cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>PersonalTaskAI</string>
+    <string>Waan</string>
     <key>CFBundleIdentifier</key>
-    <string>com.personaltaskai.app</string>
+    <string>com.waan.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Personal Task AI</string>
+    <string>Waan</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -46,5 +46,5 @@ cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
 </plist>
 EOF
 
-echo "✓ Personal Task AI.app พร้อมใช้งานแล้ว!"
-echo "👉 คุณสามารถเปิดแอปได้ด้วยคำสั่ง: open \"Personal Task AI.app\""
+echo "✓ Waan.app พร้อมใช้งานแล้ว!"
+echo "👉 คุณสามารถเปิดแอปได้ด้วยคำสั่ง: open Waan.app"
