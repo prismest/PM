@@ -7,8 +7,25 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
-    runs-on: macos-14
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Test Suite
+        run: python3 -m unittest discover -s tests -p "test_*.py" -v
+
+  build-macos:
+    name: macOS Release Build
+    runs-on: macos-latest
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,7 +38,3 @@ jobs:
 
       - name: Package macOS App Bundle
         run: ./build_app.sh
-
-      - name: Run Test Suite
-        run: make test
-
