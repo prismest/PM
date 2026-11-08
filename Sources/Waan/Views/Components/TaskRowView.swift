@@ -8,7 +8,6 @@ public struct TaskRowView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
-                // Checkbox
                 Button(action: {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
                         store.toggleTask(id: task.id)
@@ -20,7 +19,6 @@ public struct TaskRowView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Title & Metadata
                 VStack(alignment: .leading, spacing: 3) {
                     Text(task.title)
                         .font(.system(size: 14, weight: task.isCompleted ? .regular : .medium))
@@ -28,10 +26,8 @@ public struct TaskRowView: View {
                         .foregroundColor(task.isCompleted ? .secondary : .primary)
 
                     HStack(spacing: 8) {
-                        // Priority Badge
                         priorityBadge(task.priority)
 
-                        // Due Date
                         if let due = task.dueDate, !due.isEmpty {
                             HStack(spacing: 3) {
                                 Image(systemName: "calendar")
@@ -42,7 +38,6 @@ public struct TaskRowView: View {
                             .foregroundColor(.secondary)
                         }
 
-                        // Subtasks Counter
                         if !task.subtasks.isEmpty {
                             Button(action: {
                                 withAnimation(.easeInOut(duration: 0.2)) {
@@ -64,7 +59,6 @@ public struct TaskRowView: View {
                             .buttonStyle(.plain)
                         }
 
-                        // Tags
                         ForEach(task.tags, id: \.self) { tag in
                             Text("#\(tag)")
                                 .font(.system(size: 10))
@@ -79,7 +73,6 @@ public struct TaskRowView: View {
 
                 Spacer()
 
-                // Delete Button
                 Button(action: {
                     withAnimation {
                         store.deleteTask(id: task.id)
@@ -90,10 +83,9 @@ public struct TaskRowView: View {
                         .foregroundColor(.secondary.opacity(0.6))
                 }
                 .buttonStyle(.plain)
-                .help("ลบงานนี้")
+                .help("Delete task")
             }
 
-            // Expanded Subtasks List
             if isExpanded && !task.subtasks.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(task.subtasks) { subtask in
@@ -131,16 +123,16 @@ public struct TaskRowView: View {
 
     @ViewBuilder
     private func priorityBadge(_ priority: Priority) -> some View {
-        let (color, text): (Color, String) = {
+        let color: Color = {
             switch priority {
-            case .low: return (.gray, "ต่ำ")
-            case .normal: return (.blue, "ปกติ")
-            case .high: return (.orange, "สำคัญ")
-            case .urgent: return (.red, "ด่วนมาก")
+            case .low: return .gray
+            case .normal: return .blue
+            case .high: return .orange
+            case .urgent: return .red
             }
         }()
 
-        Text(text)
+        Text(priority.displayName)
             .font(.system(size: 10, weight: .medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -150,11 +142,8 @@ public struct TaskRowView: View {
     }
 
     private func formatDueDate(_ raw: String) -> String {
-        let todayStr = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
-        if raw.starts(with: todayStr) {
-            return "วันนี้"
-        }
-        return raw.prefix(10).description
+        let today = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
+        return raw.starts(with: today) ? "Today" : String(raw.prefix(10))
     }
 }
 

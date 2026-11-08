@@ -4,6 +4,7 @@ import os
 import sqlite3
 import json
 import uuid
+import argparse
 from datetime import datetime, date
 
 DB_DIR = os.path.expanduser("~/Library/Application Support/Waan")
@@ -41,12 +42,7 @@ def add_task(title, due=None, priority="normal", subtasks=None, tags=None):
     task_id = str(uuid.uuid4())
     created_at = datetime.now().isoformat()
     
-    subtask_items = []
-    if subtasks:
-        for s in subtasks:
-            s = s.strip()
-            if s:
-                subtask_items.append({"id": str(uuid.uuid4()), "title": s, "isDone": False})
+    subtask_items = [{"id": str(uuid.uuid4()), "title": s.strip(), "isDone": False} for s in (subtasks or []) if s.strip()]
     
     tag_items = [t.strip() for t in (tags or []) if t.strip()]
 
@@ -128,141 +124,129 @@ def add_subtasks_to_task(target, new_subtasks):
     
     task_id, title, subtasks_json = row[0], row[1], row[2]
     current = json.loads(subtasks_json or "[]")
-    for s in new_subtasks:
-        s = s.strip()
-        if s:
-            current.append({"id": str(uuid.uuid4()), "title": s, "isDone": False})
-    
+    current.extend({"id": str(uuid.uuid4()), "title": s.strip(), "isDone": False} for s in new_subtasks if s.strip())
+
     cursor.execute("UPDATE tasks SET subtasks_json=? WHERE id=?", (json.dumps(current, ensure_ascii=False), task_id))
     conn.commit()
     conn.close()
     return (task_id, title, len(current))
 
-def print_help():
-    print("""Waan CLI - คำสั่งสำหรับจัดการ Task และเชื่อมต่อ AI Harness
-Usage:
-  waan add <title> [--due YYYY-MM-DD] [--priority low|normal|high|urgent] [--subtasks "s1, s2"] [--tags "t1, t2"]
-  waan list [--all | --completed] [--json]
-  waan done <id_or_keyword>
-  waan delete <id_or_keyword>
-  waan breakdown <id_or_keyword> <subtask1> <subtask2> ...
+def resolve_due_date(val):
+    if not val:
+        return None
+    due_map = {"today": date.today().isoformat(), "tomorrow": date.fromordinal(date.today().toordinal() + 1).isoformat()}
+    return due_map.get(val.lower(), val)
 
-Examples:
-  ./bin/waan add "เตรียมสไลด์นำเสนอ" --due today --priority high
-  ./bin/waan add "วางแผนท่องเที่ยวญี่ปุ่น" --subtasks "จองตั๋ว, จองโรงแรม, แลกเงิน"
-  ./bin/waan list
-  ./bin/waan done "สไลด์"
-""")
+def split_csv(val):
+    if not val:
+        return []
+    return [s.strip() for s in val.split(",") if s.strip()]
+
+def cmd_add(args):
+    due = resolve_due_date(args.due)
+    subtasks = split_csv(args.subtasks)
+    tags = split_csv(args.tags)
+    task_id = add_task(args.title, due=due, priority=args.priority, subtasks=subtasks, tags=tags)
+    print(f"Task added: {args.title} (ID: {task_id[:8]}...)")
+
+def print_task_item(t):
+    status_icon = "[x]" if t["status"] == "completed" else "[ ]"
+    priority_mark = "!" if t["priority"] in ["high", "urgent"] else " "
+    due_info = f" [Due: {t['due_date'][:10]}]" if t["due_date"] else ""
+    sub_info = f" ({len(t['subtasks'])} subtasks)" if t["subtasks"] else ""
+    print(f"{status_icon} [{t['id'][:8]}] {priority_mark} {t['title']}{due_info}{sub_info}")
+    for s in t.get("subtasks", []):
+        s_icon = "[x]" if s["isDone"] else "[-]"
+        print(f"    {s_icon} {s['title']}")
+
+def cmd_list(args):
+    if args.all:
+        status = "all"
+    elif args.completed:
+        status = "completed"
+    else:
+        status = "pending"
+
+    tasks = list_tasks(status=status)
+    if args.json:
+        print(json.dumps(tasks, ensure_ascii=False, indent=2))
+        return
+
+    if not tasks:
+        print("No pending tasks found.")
+        return
+
+    print(f"--- Waan ({len(tasks)} tasks) ---")
+    for t in tasks:
+        print_task_item(t)
+
+def cmd_done(args):
+    res = complete_task(args.target)
+    if res:
+        print(f"Task completed: {res[1]} (ID: {res[0][:8]}...)")
+    else:
+        print(f"Task not found matching: {args.target}")
+
+def cmd_delete(args):
+    res = delete_task(args.target)
+    if res:
+        print(f"Task deleted: {res[1]} (ID: {res[0][:8]}...)")
+    else:
+        print(f"Task not found matching: {args.target}")
+
+def cmd_breakdown(args):
+    res = add_subtasks_to_task(args.target, args.subtasks)
+    if res:
+        print(f"Added {len(args.subtasks)} subtasks to '{res[1]}' (Total: {res[2]} subtasks)")
+    else:
+        print(f"Task not found: {args.target}")
+
+TARGET_HELP = "Task ID or search keyword"
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog="waan",
+        description="Waan CLI - Task Management & AI Harness Integration Tool"
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    p_add = subparsers.add_parser("add", help="Add a new task")
+    p_add.add_argument("title", help="Title of the task")
+    p_add.add_argument("--due", help="Due date: today, tomorrow, or YYYY-MM-DD")
+    p_add.add_argument("--priority", choices=["low", "normal", "high", "urgent"], default="normal")
+    p_add.add_argument("--subtasks", help="Comma-separated subtasks")
+    p_add.add_argument("--tags", help="Comma-separated tags")
+    p_add.set_defaults(func=cmd_add)
+
+    p_list = subparsers.add_parser("list", help="List tasks")
+    p_list.add_argument("--all", action="store_true", help="List all tasks")
+    p_list.add_argument("--completed", action="store_true", help="List completed tasks")
+    p_list.add_argument("--json", action="store_true", help="Output in JSON format")
+    p_list.set_defaults(func=cmd_list)
+
+    p_done = subparsers.add_parser("done", help="Complete a task")
+    p_done.add_argument("target", help=TARGET_HELP)
+    p_done.set_defaults(func=cmd_done)
+
+    p_delete = subparsers.add_parser("delete", help="Delete a task")
+    p_delete.add_argument("target", help=TARGET_HELP)
+    p_delete.set_defaults(func=cmd_delete)
+
+    p_bd = subparsers.add_parser("breakdown", help="Add subtasks to an existing task")
+    p_bd.add_argument("target", help=TARGET_HELP)
+    p_bd.add_argument("subtasks", nargs="+", help="Subtasks to add")
+    p_bd.set_defaults(func=cmd_breakdown)
+
+    return parser
 
 def main():
-    if len(sys.argv) < 2:
-        print_help()
+    parser = build_parser()
+    args = parser.parse_args()
+    if not hasattr(args, "func"):
+        parser.print_help()
         sys.exit(0)
-
-    cmd = sys.argv[1].lower()
-
-    if cmd in ["-h", "--help", "help"]:
-        print_help()
-        sys.exit(0)
-
-    if cmd == "add":
-        if len(sys.argv) < 3:
-            print("Error: โปรดระบุชื่องาน เช่น: ./bin/waan add \"ตรวจงาน\"")
-            sys.exit(1)
-        
-        title = sys.argv[2]
-        due = None
-        priority = "normal"
-        subtasks = []
-        tags = []
-
-        i = 3
-        while i < len(sys.argv):
-            arg = sys.argv[i]
-            if arg == "--due" and i + 1 < len(sys.argv):
-                val = sys.argv[i+1].lower()
-                if val == "today":
-                    due = date.today().isoformat()
-                elif val == "tomorrow":
-                    due = date.fromordinal(date.today().toordinal() + 1).isoformat()
-                else:
-                    due = val
-                i += 2
-            elif arg == "--priority" and i + 1 < len(sys.argv):
-                priority = sys.argv[i+1].lower()
-                i += 2
-            elif arg == "--subtasks" and i + 1 < len(sys.argv):
-                subtasks = [s.strip() for s in sys.argv[i+1].split(",") if s.strip()]
-                i += 2
-            elif arg == "--tags" and i + 1 < len(sys.argv):
-                tags = [t.strip() for t in sys.argv[i+1].split(",") if t.strip()]
-                i += 2
-            else:
-                i += 1
-
-        task_id = add_task(title, due=due, priority=priority, subtasks=subtasks, tags=tags)
-        print(f"✓ เพิ่มงานสำเร็จ: {title} (ID: {task_id[:8]}...)")
-
-    elif cmd == "list":
-        status = "pending"
-        is_json = "--json" in sys.argv
-        if "--all" in sys.argv:
-            status = "all"
-        elif "--completed" in sys.argv:
-            status = "completed"
-
-        tasks = list_tasks(status=status)
-        if is_json:
-            print(json.dumps(tasks, ensure_ascii=False, indent=2))
-        else:
-            if not tasks:
-                print("ไม่มีงานค้างอยู่ในขณะนี้ ✨")
-                return
-            print(f"--- Waan ({len(tasks)} รายการ) ---")
-            for t in tasks:
-                status_icon = "✓" if t["status"] == "completed" else "○"
-                priority_mark = "!" if t["priority"] in ["high", "urgent"] else " "
-                due_info = f" [กำหนด: {t['due_date'][:10]}]" if t["due_date"] else ""
-                sub_info = f" ({len(t['subtasks'])} ข้อย่อย)" if t["subtasks"] else ""
-                print(f"{status_icon} [{t['id'][:8]}] {priority_mark} {t['title']}{due_info}{sub_info}")
-                for s in t.get("subtasks", []):
-                    s_icon = "✓" if s["isDone"] else "-"
-                    print(f"    {s_icon} {s['title']}")
-
-    elif cmd == "done":
-        if len(sys.argv) < 3:
-            print("Error: โปรดระบุ ID หรือคำค้นหา เช่น: ./bin/waan done \"สไลด์\"")
-            sys.exit(1)
-        res = complete_task(sys.argv[2])
-        if res:
-            print(f"✓ ติ๊กงานสำเร็จ: {res[1]} (ID: {res[0][:8]}...)")
-        else:
-            print(f"✗ ไม่พบงานที่ตรงกับ: {sys.argv[2]}")
-
-    elif cmd == "delete":
-        if len(sys.argv) < 3:
-            print("Error: โปรดระบุ ID หรือคำค้นหา เช่น: ./bin/waan delete \"สไลด์\"")
-            sys.exit(1)
-        res = delete_task(sys.argv[2])
-        if res:
-            print(f"🗑️ ลบงานสำเร็จ: {res[1]} (ID: {res[0][:8]}...)")
-        else:
-            print(f"✗ ไม่พบงานที่ตรงกับ: {sys.argv[2]}")
-
-    elif cmd == "breakdown":
-        if len(sys.argv) < 4:
-            print("Error: ./bin/waan breakdown <id_or_keyword> <subtask1> <subtask2> ...")
-            sys.exit(1)
-        target = sys.argv[2]
-        new_subtasks = sys.argv[3:]
-        res = add_subtasks_to_task(target, new_subtasks)
-        if res:
-            print(f"✓ เพิ่ม {len(new_subtasks)} ขั้นตอนย่อยในงาน '{res[1]}' เรียบร้อย (รวม {res[2]} ข้อย่อย)")
-        else:
-            print(f"✗ ไม่พบงาน: {target}")
-
-    else:
-        print_help()
+    args.func(args)
 
 if __name__ == "__main__":
     main()
+

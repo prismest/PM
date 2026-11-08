@@ -8,23 +8,8 @@ public enum Priority: String, Codable, CaseIterable, Identifiable {
 
     public var id: String { rawValue }
 
-    public var displayName: String {
-        switch self {
-        case .low: return "ต่ำ (Low)"
-        case .normal: return "ปกติ (Normal)"
-        case .high: return "สำคัญ (High)"
-        case .urgent: return "เร่งด่วน (Urgent)"
-        }
-    }
+    public var displayName: String { rawValue.capitalized }
 
-    public var colorName: String {
-        switch self {
-        case .low: return "gray"
-        case .normal: return "blue"
-        case .high: return "orange"
-        case .urgent: return "red"
-        }
-    }
 }
 
 public enum TaskStatus: String, Codable, CaseIterable {
@@ -77,13 +62,10 @@ public struct TaskItem: Identifiable, Codable, Equatable {
         self.completedAt = completedAt
     }
 
-    public var isCompleted: Bool {
-        return status == .completed
-    }
+    public var isCompleted: Bool { status == .completed }
 
     public var subtaskProgress: (done: Int, total: Int) {
-        let done = subtasks.filter { $0.isDone }.count
-        return (done, subtasks.count)
+        (subtasks.filter(\.isDone).count, subtasks.count)
     }
 }
 

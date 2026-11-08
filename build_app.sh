@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🔨 Building Waan (Swift Release Build)..."
+echo "Building Waan (Swift Release Build)..."
 swift build -c release
 
-APP_EXEC="Waan"
 APP_NAME="Waan"
 APP_DIR="${APP_NAME}.app"
 MACOS_DIR="${APP_DIR}/Contents/MacOS"
 RESOURCES_DIR="${APP_DIR}/Contents/Resources"
 
-echo "📦 Creating macOS .app Bundle: ${APP_DIR}..."
+echo "Creating macOS .app Bundle: ${APP_DIR}..."
 mkdir -p "${MACOS_DIR}"
 mkdir -p "${RESOURCES_DIR}"
 
-cp ".build/release/${APP_EXEC}" "${MACOS_DIR}/${APP_EXEC}"
-chmod +x "${MACOS_DIR}/${APP_EXEC}"
+cp ".build/release/${APP_NAME}" "${MACOS_DIR}/${APP_NAME}"
+chmod +x "${MACOS_DIR}/${APP_NAME}"
 
 cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -46,5 +45,5 @@ cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
 </plist>
 EOF
 
-echo "✓ Waan.app พร้อมใช้งานแล้ว!"
-echo "👉 คุณสามารถเปิดแอปได้ด้วยคำสั่ง: open Waan.app"
+echo "Waan.app is ready."
+echo "You can launch the app with: open Waan.app"

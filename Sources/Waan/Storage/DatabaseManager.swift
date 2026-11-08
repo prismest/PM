@@ -1,10 +1,6 @@
 import Foundation
 import SQLite3
 
-public extension Notification.Name {
-    static let tasksDatabaseDidChange = Notification.Name("tasksDatabaseDidChange")
-}
-
 public final class DatabaseManager: @unchecked Sendable {
     public static let shared = DatabaseManager()
 
@@ -14,7 +10,6 @@ public final class DatabaseManager: @unchecked Sendable {
     public let dbPath: String
 
     private init() {
-        // Prepare storage directory at ~/Library/Application Support/Waan
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = appSupport.appendingPathComponent("Waan", isDirectory: true)
 
@@ -22,7 +17,6 @@ public final class DatabaseManager: @unchecked Sendable {
         let fileUrl = dir.appendingPathComponent("tasks.db")
         self.dbPath = fileUrl.path
 
-        // Create symlink ~/.waan -> ~/Library/Application Support/Waan for easy CLI/AI access
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         let dotPath = homeDir.appendingPathComponent(".waan")
         if !FileManager.default.fileExists(atPath: dotPath.path) {
@@ -34,18 +28,15 @@ public final class DatabaseManager: @unchecked Sendable {
     }
 
     deinit {
-        if db != nil {
-            sqlite3_close(db)
-        }
+        sqlite3_close(db)
     }
 
     private func openDatabase() {
         if sqlite3_open_v2(dbPath, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK {
-            // Enable WAL mode for high concurrency between Native App and AI Harness
             sqlite3_exec(db, "PRAGMA journal_mode=WAL;", nil, nil, nil)
             sqlite3_exec(db, "PRAGMA busy_timeout=5000;", nil, nil, nil)
         } else {
-            print("ZenTask Error: Failed to open SQLite database at \(dbPath)")
+            print("Waan Error: Failed to open SQLite database at \(dbPath)")
         }
     }
 
@@ -77,35 +68,15 @@ public final class DatabaseManager: @unchecked Sendable {
                     let id = String(cString: sqlite3_column_text(stmt, 0))
                     let title = String(cString: sqlite3_column_text(stmt, 1))
 
-                    var dueDate: String? = nil
-                    if let cStr = sqlite3_column_text(stmt, 2) {
-                        dueDate = String(cString: cStr)
-                    }
-
-                    let priorityStr = String(cString: sqlite3_column_text(stmt, 3))
-                    let priority = Priority(rawValue: priorityStr) ?? .normal
-
-                    let statusStr = String(cString: sqlite3_column_text(stmt, 4))
-                    let status = TaskStatus(rawValue: statusStr) ?? .pending
-
+                    let dueDate = sqlite3_column_text(stmt, 2).map { String(cString: $0) }
+                    let priority = Priority(rawValue: String(cString: sqlite3_column_text(stmt, 3))) ?? .normal
+                    let status = TaskStatus(rawValue: String(cString: sqlite3_column_text(stmt, 4))) ?? .pending
                     let subtasksJson = String(cString: sqlite3_column_text(stmt, 5))
-                    var subtasks: [SubtaskItem] = []
-                    if let data = subtasksJson.data(using: .utf8) {
-                        subtasks = (try? JSONDecoder().decode([SubtaskItem].self, from: data)) ?? []
-                    }
-
+                    let subtasks = subtasksJson.data(using: .utf8).flatMap { try? JSONDecoder().decode([SubtaskItem].self, from: $0) } ?? []
                     let tagsJson = String(cString: sqlite3_column_text(stmt, 6))
-                    var tags: [String] = []
-                    if let data = tagsJson.data(using: .utf8) {
-                        tags = (try? JSONDecoder().decode([String].self, from: data)) ?? []
-                    }
-
+                    let tags = tagsJson.data(using: .utf8).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
                     let createdAt = String(cString: sqlite3_column_text(stmt, 7))
-
-                    var completedAt: String? = nil
-                    if let cStr = sqlite3_column_text(stmt, 8) {
-                        completedAt = String(cString: cStr)
-                    }
+                    let completedAt = sqlite3_column_text(stmt, 8).map { String(cString: $0) }
 
                     let task = TaskItem(
                         id: id,
@@ -164,49 +135,28 @@ public final class DatabaseManager: @unchecked Sendable {
                 }
 
                 if sqlite3_step(stmt) != SQLITE_DONE {
-                    print("ZenTask Error: Failed to insert task")
+                    print("Waan Error: Failed to insert task")
                 }
             }
             sqlite3_finalize(stmt)
         }
-        notifyChange()
     }
 
     public func toggleTask(id: String) {
         queue.sync {
-            var currentStatus = TaskStatus.pending
-            var currentCompletedAt: String? = nil
-
-            let selectSql = "SELECT status FROM tasks WHERE id = ? LIMIT 1;"
+            let sql = """
+            UPDATE tasks
+            SET status = CASE WHEN status = 'completed' THEN 'pending' ELSE 'completed' END,
+                completed_at = CASE WHEN status = 'pending' THEN strftime('%Y-%m-%dT%H:%M:%SZ', 'now') ELSE NULL END
+            WHERE id = ?;
+            """
             var stmt: OpaquePointer?
-            if sqlite3_prepare_v2(db, selectSql, -1, &stmt, nil) == SQLITE_OK {
+            if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
                 sqlite3_bind_text(stmt, 1, (id as NSString).utf8String, -1, nil)
-                if sqlite3_step(stmt) == SQLITE_ROW {
-                    let str = String(cString: sqlite3_column_text(stmt, 0))
-                    currentStatus = TaskStatus(rawValue: str) ?? .pending
-                }
-            }
-            sqlite3_finalize(stmt)
-
-            let newStatus: TaskStatus = (currentStatus == .pending) ? .completed : .pending
-            if newStatus == .completed {
-                currentCompletedAt = ISO8601DateFormatter().string(from: Date())
-            }
-
-            let updateSql = "UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?;"
-            if sqlite3_prepare_v2(db, updateSql, -1, &stmt, nil) == SQLITE_OK {
-                sqlite3_bind_text(stmt, 1, (newStatus.rawValue as NSString).utf8String, -1, nil)
-                if let comp = currentCompletedAt {
-                    sqlite3_bind_text(stmt, 2, (comp as NSString).utf8String, -1, nil)
-                } else {
-                    sqlite3_bind_null(stmt, 2)
-                }
-                sqlite3_bind_text(stmt, 3, (id as NSString).utf8String, -1, nil)
                 sqlite3_step(stmt)
             }
             sqlite3_finalize(stmt)
         }
-        notifyChange()
     }
 
     public func toggleSubtask(taskId: String, subtaskId: String) {
@@ -225,12 +175,8 @@ public final class DatabaseManager: @unchecked Sendable {
                 }
             }
             sqlite3_finalize(stmt)
-
-            for i in 0..<subtasks.count {
-                if subtasks[i].id == subtaskId {
-                    subtasks[i].isDone.toggle()
-                    break
-                }
+            if let idx = subtasks.firstIndex(where: { $0.id == subtaskId }) {
+                subtasks[idx].isDone.toggle()
             }
 
             let subtasksData = (try? JSONEncoder().encode(subtasks)) ?? Data("[]".utf8)
@@ -244,7 +190,6 @@ public final class DatabaseManager: @unchecked Sendable {
             }
             sqlite3_finalize(stmt)
         }
-        notifyChange()
     }
 
     public func delete(id: String) {
@@ -256,13 +201,6 @@ public final class DatabaseManager: @unchecked Sendable {
                 sqlite3_step(stmt)
             }
             sqlite3_finalize(stmt)
-        }
-        notifyChange()
-    }
-
-    private func notifyChange() {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .tasksDatabaseDidChange, object: nil)
         }
     }
 }
