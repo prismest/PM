@@ -84,7 +84,7 @@ Most modern task management applications rely on heavy web wrappers (Electron), 
 
 ### 1-Line Build & Run
 ```bash
-git clone https://github.com/your-username/waan.git
+git clone https://github.com/prismest/waan.git
 cd waan
 make build
 make run
