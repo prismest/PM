@@ -4,7 +4,7 @@ public struct QuickInputBar: View {
     @ObservedObject var store: TaskStore
     @State private var text: String = ""
     @State private var priority: Priority = .normal
-    @State private var dueDateOption: String = "today" // "today", "tomorrow", "none"
+    @State private var dueDateOption: String = "today"
 
     public var body: some View {
         VStack(spacing: 6) {
@@ -13,14 +13,13 @@ public struct QuickInputBar: View {
                     .foregroundColor(.accentColor)
                     .font(.system(size: 16))
 
-                TextField("พิมพ์งานที่ต้องทำ... (กด Enter เพื่อเพิ่ม)", text: $text)
+                TextField("Add a task... (Press Return to add)", text: $text)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .onSubmit {
                         submit()
                     }
 
-                // Priority Picker Menu
                 Menu {
                     ForEach(Priority.allCases) { p in
                         Button(action: { priority = p }) {
@@ -47,11 +46,10 @@ public struct QuickInputBar: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
 
-                // Due Date Menu
                 Menu {
-                    Button("วันนี้") { dueDateOption = "today" }
-                    Button("พรุ่งนี้") { dueDateOption = "tomorrow" }
-                    Button("ไม่ระบุวัน") { dueDateOption = "none" }
+                    Button("Today") { dueDateOption = "today" }
+                    Button("Tomorrow") { dueDateOption = "tomorrow" }
+                    Button("No Date") { dueDateOption = "none" }
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "calendar")
@@ -67,9 +65,8 @@ public struct QuickInputBar: View {
                 .menuStyle(.borderlessButton)
                 .fixedSize()
 
-                // Submit Button
                 Button(action: submit) {
-                    Text("เพิ่ม")
+                    Text("Add")
                         .font(.system(size: 12, weight: .semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -95,28 +92,15 @@ public struct QuickInputBar: View {
     }
 
     private var dueDateLabel: String {
-        switch dueDateOption {
-        case "today": return "วันนี้"
-        case "tomorrow": return "พรุ่งนี้"
-        default: return "ไม่ระบุ"
-        }
+        dueDateOption == "none" ? "None" : dueDateOption.capitalized
     }
 
     private func submit() {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        var calculatedDueDate: String? = nil
-        let calendar = Calendar.current
-        let formatter = ISO8601DateFormatter()
-
-        if dueDateOption == "today" {
-            calculatedDueDate = formatter.string(from: Date())
-        } else if dueDateOption == "tomorrow" {
-            if let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) {
-                calculatedDueDate = formatter.string(from: tomorrow)
-            }
-        }
+        let targetDate = dueDateOption == "today" ? Date() : (dueDateOption == "tomorrow" ? Calendar.current.date(byAdding: .day, value: 1, to: Date()) : nil)
+        let calculatedDueDate = targetDate.map { ISO8601DateFormatter().string(from: $0) }
 
         store.addTask(
             title: trimmed,
@@ -126,7 +110,6 @@ public struct QuickInputBar: View {
             tags: []
         )
 
-        // Reset
         text = ""
         priority = .normal
     }

@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Test Suite
+        run: python3 -m unittest discover -s tests -p "test_*.py" -v
+
+  build-macos:
+    name: macOS Release Build
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Swift Toolchain
+        run: swift --version
+
+      - name: Build Waan (Release)
+        run: swift build -c release
+
+      - name: Package macOS App Bundle
+        run: ./build_app.sh

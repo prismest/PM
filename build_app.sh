@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🔨 Building ZenTask (Swift Release Build)..."
+echo "Building Waan (Swift Release Build)..."
 swift build -c release
 
-APP_NAME="ZenTask"
+APP_NAME="Waan"
 APP_DIR="${APP_NAME}.app"
 MACOS_DIR="${APP_DIR}/Contents/MacOS"
 RESOURCES_DIR="${APP_DIR}/Contents/Resources"
 
-echo "📦 Creating macOS .app Bundle: ${APP_DIR}..."
+echo "Creating macOS .app Bundle: ${APP_DIR}..."
 mkdir -p "${MACOS_DIR}"
 mkdir -p "${RESOURCES_DIR}"
 
@@ -24,13 +24,13 @@ cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>ZenTask</string>
+    <string>Waan</string>
     <key>CFBundleIdentifier</key>
-    <string>com.zentask.app</string>
+    <string>com.waan.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>ZenTask</string>
+    <string>Waan</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -45,6 +45,5 @@ cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
 </plist>
 EOF
 
-echo "✓ ZenTask.app พร้อมใช้งานแล้ว!"
-echo "👉 คุณสามารถเปิดแอปได้ด้วยคำสั่ง: open ZenTask.app"
-
+echo "Waan.app is ready."
+echo "You can launch the app with: open Waan.app"

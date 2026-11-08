@@ -1,12 +1,11 @@
 import SwiftUI
-import Combine
 
 public enum FilterType: String, CaseIterable, Identifiable {
-    case all = "ทั้งหมด"
-    case today = "วันนี้"
-    case pending = "ที่ยังไม่เสร็จ"
-    case highPriority = "สำคัญมาก"
-    case completed = "เสร็จแล้ว"
+    case all = "All Tasks"
+    case today = "Today"
+    case pending = "Pending"
+    case highPriority = "High Priority"
+    case completed = "Completed"
 
     public var id: String { rawValue }
 
@@ -30,21 +29,11 @@ public final class TaskStore: ObservableObject {
     @Published public var searchText: String = ""
 
     private let db = DatabaseManager.shared
-    private var cancellables = Set<AnyCancellable>()
     private var fileWatcher: FileWatcher?
 
     public init() {
         reloadTasks()
 
-        // Listen for internal app changes
-        NotificationCenter.default.publisher(for: .tasksDatabaseDidChange)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.reloadTasks()
-            }
-            .store(in: &cancellables)
-
-        // Watch for external AI Harness / CLI updates to tasks.db
         fileWatcher = FileWatcher(filePath: db.dbPath) { [weak self] in
             DispatchQueue.main.async {
                 self?.reloadTasks()
@@ -59,7 +48,6 @@ public final class TaskStore: ObservableObject {
     public var filteredTasks: [TaskItem] {
         var result = tasks
 
-        // Search text filter
         if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let query = searchText.lowercased()
             result = result.filter {
@@ -69,31 +57,24 @@ public final class TaskStore: ObservableObject {
             }
         }
 
-        // Category filter
         switch selectedFilter {
         case .all:
             return result
         case .today:
             let todayStr = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
-            return result.filter { task in
-                if task.isCompleted { return false }
-                guard let due = task.dueDate else { return true } // Tasks without date count as today/inbox
-                return due.starts(with: todayStr) || task.priority == .urgent
-            }
+            return result.filter { !$0.isCompleted && (($0.dueDate?.starts(with: todayStr) ?? true) || $0.priority == .urgent) }
         case .pending:
             return result.filter { !$0.isCompleted }
         case .highPriority:
             return result.filter { !$0.isCompleted && ($0.priority == .high || $0.priority == .urgent) }
         case .completed:
-            return result.filter { $0.isCompleted }
+            return result.filter(\.isCompleted)
         }
     }
 
     public var todayTasksCount: Int {
         let todayStr = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
-        return tasks.filter { task in
-            !task.isCompleted && ((task.dueDate?.starts(with: todayStr) ?? true) || task.priority == .urgent)
-        }.count
+        return tasks.filter { !$0.isCompleted && (($0.dueDate?.starts(with: todayStr) ?? true) || $0.priority == .urgent) }.count
     }
 
     public func addTask(

@@ -2,14 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "ZenTask",
+    name: "Waan",
     platforms: [
         .macOS(.v14)
     ],
     targets: [
         .executableTarget(
-            name: "ZenTask"
+            name: "Waan"
         ),
     ]
 )
-

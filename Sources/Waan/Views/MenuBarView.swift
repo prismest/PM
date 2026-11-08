@@ -6,19 +6,17 @@ public struct MenuBarView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkles")
                         .foregroundColor(.accentColor)
-                    Text("ZenTask")
+                    Text("Waan")
                         .font(.system(size: 14, weight: .bold))
                 }
 
                 Spacer()
 
-                // Pending task count badge
-                Text("\(store.todayTasksCount) งานวันนี้")
+                Text("\(store.todayTasksCount) today")
                     .font(.system(size: 11, weight: .medium))
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
@@ -26,14 +24,13 @@ public struct MenuBarView: View {
                     .foregroundColor(.accentColor)
                     .cornerRadius(10)
 
-                // Open Main Window Button
                 Button(action: onOpenMainWindow) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("เปิดหน้าต่างหลัก")
+                .help("Open Main Window")
             }
             .padding(.horizontal, 14)
             .padding(.top, 12)
@@ -41,21 +38,19 @@ public struct MenuBarView: View {
 
             Divider()
 
-            // Quick Input
             VStack {
                 QuickInputBar(store: store)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
-            // Tasks List
             if store.filteredTasks.isEmpty {
                 VStack(spacing: 8) {
                     Spacer()
                     Image(systemName: "checkmark.seal")
                         .font(.system(size: 32))
                         .foregroundColor(.secondary.opacity(0.4))
-                    Text("ไม่มีงานค้างสำหรับวันนี้!")
+                    Text("All tasks completed for today!")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -76,7 +71,6 @@ public struct MenuBarView: View {
 
             Divider()
 
-            // Footer with AI Harness status & Quit
             HStack {
                 HStack(spacing: 5) {
                     Circle()
@@ -86,11 +80,11 @@ public struct MenuBarView: View {
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 }
-                .help("ฐานข้อมูลอยู่ที่ ~/.zentask/tasks.db พร้อมให้ AI เชื่อมต่อ")
+                .help("Database at ~/.waan/tasks.db ready for AI connection")
 
                 Spacer()
 
-                Button("ออกจากแอป") {
+                Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
                 .font(.system(size: 11))

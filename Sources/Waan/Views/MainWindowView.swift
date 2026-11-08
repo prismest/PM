@@ -6,17 +6,15 @@ public struct MainWindowView: View {
 
     public var body: some View {
         NavigationSplitView {
-            // Sidebar
             VStack(alignment: .leading, spacing: 12) {
-                // App Brand
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles.rectangle.stack.fill")
                         .font(.system(size: 20))
                         .foregroundColor(.accentColor)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("ZenTask")
-                            .font(.system(size: 15, weight: .bold))
-                        Text("macOS & AI Assistant")
+                        Text("Waan")
+                            .font(.system(size: 16, weight: .bold))
+                        Text("Personal Task Manager")
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
                     }
@@ -26,7 +24,6 @@ public struct MainWindowView: View {
 
                 Divider()
 
-                // Filter Categories
                 List(FilterType.allCases, selection: Binding(
                     get: { store.selectedFilter },
                     set: { store.selectedFilter = $0 }
@@ -44,7 +41,6 @@ public struct MainWindowView: View {
 
                 Spacer()
 
-                // AI Harness Status Box
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Circle()
@@ -55,7 +51,7 @@ public struct MainWindowView: View {
                             .foregroundColor(.primary)
                     }
 
-                    Text("~/.zentask/tasks.db พร้อมเชื่อมต่อกับ Claude, Cursor, MCP")
+                    Text("~/.waan/tasks.db ready for Claude, Cursor, MCP")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                         .lineLimit(2)
@@ -64,7 +60,7 @@ public struct MainWindowView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "terminal.fill")
                                 .font(.system(size: 9))
-                            Text("วิธีให้ AI สั่งงาน")
+                            Text("AI Integration Guide")
                                 .font(.system(size: 10, weight: .medium))
                         }
                         .foregroundColor(.accentColor)
@@ -80,26 +76,23 @@ public struct MainWindowView: View {
             }
             .frame(minWidth: 200, idealWidth: 220)
         } detail: {
-            // Main Content Area
             VStack(spacing: 0) {
-                // Header Bar
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(store.selectedFilter.rawValue)
                             .font(.system(size: 20, weight: .bold))
-                        Text("\(store.filteredTasks.count) รายการ")
+                        Text("\(store.filteredTasks.count) tasks")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
 
                     Spacer()
 
-                    // Search Field
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
                             .font(.system(size: 12))
-                        TextField("ค้นหางาน...", text: $store.searchText)
+                        TextField("Search tasks...", text: $store.searchText)
                             .textFieldStyle(.plain)
                             .font(.system(size: 12))
                         if !store.searchText.isEmpty {
@@ -127,24 +120,22 @@ public struct MainWindowView: View {
 
                 Divider()
 
-                // Quick Input Area
                 VStack {
                     QuickInputBar(store: store)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
 
-                // Task List or Empty State
                 if store.filteredTasks.isEmpty {
                     VStack(spacing: 12) {
                         Spacer()
                         Image(systemName: "sparkles")
                             .font(.system(size: 40))
                             .foregroundColor(.accentColor.opacity(0.5))
-                        Text("ไม่มีงานในหมวดนี้")
+                        Text("No tasks in this category")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundColor(.primary)
-                        Text("พิมพ์งานใหม่ด้านบน หรือให้ AI Harness เพิ่มงานเข้ามาได้ทันที")
+                        Text("Add a task above or let your AI harness schedule tasks.")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                         Spacer()
@@ -193,7 +184,6 @@ public struct MainWindowView: View {
     }
 }
 
-// AI Harness Connection Guide Modal
 struct AIGuideSheetView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -203,33 +193,33 @@ struct AIGuideSheetView: View {
                 Image(systemName: "cpu.fill")
                     .foregroundColor(.accentColor)
                     .font(.system(size: 18))
-                Text("การเชื่อมต่อกับ AI Harness (Claude / Cursor / CLI)")
+                Text("AI Harness Connection Guide (Claude / Cursor / CLI)")
                     .font(.system(size: 15, weight: .bold))
                 Spacer()
-                Button("ปิด") { dismiss() }
+                Button("Close") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
 
             Divider()
 
-            Text("ZenTask เก็บข้อมูลลงใน SQLite ที่ **~/.zentask/tasks.db** ทำให้ AI Harness ทุกตัวสามารถอ่านและสั่งงานเข้ามาได้ทันที:")
+            Text("Waan stores data in SQLite at **~/.waan/tasks.db**, allowing external AI harnesses to read and create tasks directly:")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("1. สั่งงานผ่าน CLI Command (เร็วที่สุด):")
+                Text("1. CLI Command (Fast & Scriptable):")
                     .font(.system(size: 12, weight: .semibold))
-                Text("`zentask add \"เตรียมสไลด์นำเสนอ\" --due today --priority high`")
+                Text("`./bin/waan add \"Prepare slide deck\" --due today --priority high`")
                     .font(.system(size: 11, design: .monospaced))
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.black.opacity(0.06))
                     .cornerRadius(6)
 
-                Text("2. เชื่อมต่อ Claude Desktop / Cursor ผ่าน MCP:")
+                Text("2. Claude Desktop / Cursor via MCP:")
                     .font(.system(size: 12, weight: .semibold))
                     .padding(.top, 4)
-                Text("เรียกใช้ `mcp-server.js` ในโฟลเดอร์นี้ เพื่อให้ Claude เรียกใช้งาน Tool `create_task`, `list_tasks` ได้ด้วย subscription ของคุณ")
+                Text("Use `mcp_server.py` in this folder to let Claude call tools like `waan_add_task` and `waan_list_tasks` using your existing subscription.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

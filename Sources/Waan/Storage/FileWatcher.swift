@@ -30,7 +30,6 @@ public final class FileWatcher: @unchecked Sendable {
 
         source.setEventHandler { [weak self] in
             guard let self = self else { return }
-            // Debounce slightly in case of rapid WAL commits
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.onChange()
             }
