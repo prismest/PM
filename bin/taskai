@@ -6,9 +6,9 @@ import json
 import uuid
 from datetime import datetime, date
 
-DB_DIR = os.path.expanduser("~/Library/Application Support/ZenTask")
+DB_DIR = os.path.expanduser("~/Library/Application Support/PersonalTaskAI")
 DB_PATH = os.path.join(DB_DIR, "tasks.db")
-DOT_DIR = os.path.expanduser("~/.zentask")
+DOT_DIR = os.path.expanduser("~/.personaltaskai")
 
 def init_db():
     os.makedirs(DB_DIR, exist_ok=True)
@@ -89,7 +89,6 @@ def list_tasks(status=None):
 def complete_task(target):
     conn = init_db()
     cursor = conn.cursor()
-    # Check if target is UUID or keyword
     cursor.execute("SELECT id, title FROM tasks WHERE id = ? OR title LIKE ? LIMIT 1", (target, f"%{target}%"))
     row = cursor.fetchone()
     if not row:
@@ -140,19 +139,19 @@ def add_subtasks_to_task(target, new_subtasks):
     return (task_id, title, len(current))
 
 def print_help():
-    print("""ZenTask CLI - คำสั่งสำหรับจัดการ Task และเชื่อมต่อ AI Harness
+    print("""Personal Task AI CLI - คำสั่งสำหรับจัดการ Task และเชื่อมต่อ AI Harness
 Usage:
-  zentask add <title> [--due YYYY-MM-DD] [--priority low|normal|high|urgent] [--subtasks "s1, s2"] [--tags "t1, t2"]
-  zentask list [--all | --completed] [--json]
-  zentask done <id_or_keyword>
-  zentask delete <id_or_keyword>
-  zentask breakdown <id_or_keyword> <subtask1> <subtask2> ...
+  taskai add <title> [--due YYYY-MM-DD] [--priority low|normal|high|urgent] [--subtasks "s1, s2"] [--tags "t1, t2"]
+  taskai list [--all | --completed] [--json]
+  taskai done <id_or_keyword>
+  taskai delete <id_or_keyword>
+  taskai breakdown <id_or_keyword> <subtask1> <subtask2> ...
 
 Examples:
-  zentask add "เตรียมสไลด์นำเสนอ" --due today --priority high
-  zentask add "วางแผนท่องเที่ยวญี่ปุ่น" --subtasks "จองตั๋ว, จองโรงแรม, แลกเงิน"
-  zentask list
-  zentask done "สไลด์"
+  ./bin/taskai add "เตรียมสไลด์นำเสนอ" --due today --priority high
+  ./bin/taskai add "วางแผนท่องเที่ยวญี่ปุ่น" --subtasks "จองตั๋ว, จองโรงแรม, แลกเงิน"
+  ./bin/taskai list
+  ./bin/taskai done "สไลด์"
 """)
 
 def main():
@@ -168,7 +167,7 @@ def main():
 
     if cmd == "add":
         if len(sys.argv) < 3:
-            print("Error: โปรดระบุชื่องาน เช่น: zentask add \"ตรวจงาน\"")
+            print("Error: โปรดระบุชื่องาน เช่น: ./bin/taskai add \"ตรวจงาน\"")
             sys.exit(1)
         
         title = sys.argv[2]
@@ -219,7 +218,7 @@ def main():
             if not tasks:
                 print("ไม่มีงานค้างอยู่ในขณะนี้ ✨")
                 return
-            print(f"--- ZenTask ({len(tasks)} รายการ) ---")
+            print(f"--- Personal Task AI ({len(tasks)} รายการ) ---")
             for t in tasks:
                 status_icon = "✓" if t["status"] == "completed" else "○"
                 priority_mark = "!" if t["priority"] in ["high", "urgent"] else " "
@@ -232,7 +231,7 @@ def main():
 
     elif cmd == "done":
         if len(sys.argv) < 3:
-            print("Error: โปรดระบุ ID หรือคำค้นหา เช่น: zentask done \"สไลด์\"")
+            print("Error: โปรดระบุ ID หรือคำค้นหา เช่น: ./bin/taskai done \"สไลด์\"")
             sys.exit(1)
         res = complete_task(sys.argv[2])
         if res:
@@ -242,7 +241,7 @@ def main():
 
     elif cmd == "delete":
         if len(sys.argv) < 3:
-            print("Error: โปรดระบุ ID หรือคำค้นหา เช่น: zentask delete \"สไลด์\"")
+            print("Error: โปรดระบุ ID หรือคำค้นหา เช่น: ./bin/taskai delete \"สไลด์\"")
             sys.exit(1)
         res = delete_task(sys.argv[2])
         if res:
@@ -252,7 +251,7 @@ def main():
 
     elif cmd == "breakdown":
         if len(sys.argv) < 4:
-            print("Error: zentask breakdown <id_or_keyword> <subtask1> <subtask2> ...")
+            print("Error: ./bin/taskai breakdown <id_or_keyword> <subtask1> <subtask2> ...")
             sys.exit(1)
         target = sys.argv[2]
         new_subtasks = sys.argv[3:]
@@ -267,4 +266,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -9,24 +9,24 @@ public final class DatabaseManager: @unchecked Sendable {
     public static let shared = DatabaseManager()
 
     private var db: OpaquePointer?
-    private let queue = DispatchQueue(label: "com.zentask.database", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.personaltaskai.database", qos: .userInitiated)
 
     public let dbPath: String
 
     private init() {
-        // Prepare storage directory at ~/Library/Application Support/ZenTask
+        // Prepare storage directory at ~/Library/Application Support/PersonalTaskAI
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("ZenTask", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("PersonalTaskAI", isDirectory: true)
 
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let fileUrl = dir.appendingPathComponent("tasks.db")
         self.dbPath = fileUrl.path
 
-        // Create symlink ~/.zentask -> ~/Library/Application Support/ZenTask for easy CLI/AI access
+        // Create symlink ~/.personaltaskai -> ~/Library/Application Support/PersonalTaskAI for easy CLI/AI access
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
-        let dotZenTask = homeDir.appendingPathComponent(".zentask")
-        if !FileManager.default.fileExists(atPath: dotZenTask.path) {
-            try? FileManager.default.createSymbolicLink(at: dotZenTask, withDestinationURL: dir)
+        let dotPath = homeDir.appendingPathComponent(".personaltaskai")
+        if !FileManager.default.fileExists(atPath: dotPath.path) {
+            try? FileManager.default.createSymbolicLink(at: dotPath, withDestinationURL: dir)
         }
 
         openDatabase()

@@ -11,7 +11,7 @@ public struct MenuBarView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkles")
                         .foregroundColor(.accentColor)
-                    Text("ZenTask")
+                    Text("Personal Task AI")
                         .font(.system(size: 14, weight: .bold))
                 }
 
@@ -86,7 +86,7 @@ public struct MenuBarView: View {
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 }
-                .help("ฐานข้อมูลอยู่ที่ ~/.zentask/tasks.db พร้อมให้ AI เชื่อมต่อ")
+                .help("ฐานข้อมูลอยู่ที่ ~/.personaltaskai/tasks.db พร้อมให้ AI เชื่อมต่อ")
 
                 Spacer()
 
