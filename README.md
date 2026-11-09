@@ -94,10 +94,21 @@ make run
 
 ## AI Harness Integration
 
-### 1. Claude Desktop (Model Context Protocol)
+### 1. Instant Start/Stop MCP Server Toggle
 
-Connect Waan to **Claude Desktop** to turn Claude into an autonomous executive assistant.
+Waan includes a built-in **MCP Server Controller** accessible right from the UI:
+* **Menu Bar Extra Toggle:** Switch MCP Server ON/OFF in 1 click from your menu bar without opening windows.
+* **Main Window Sidebar:** Real-time green/gray status indicator with immediate On/Off toggle switch.
+* **HTTP / SSE Transport (`http://127.0.0.1:8765/sse`):** Allows remote MCP clients (Cursor, web dashboards, local scripts) to connect over Server-Sent Events.
+* **Zero-Dep Stdio Mode:** Standard stdio bridge for Claude Desktop, with automatic enforcement of the On/Off switch state.
 
+---
+
+### 2. Claude Desktop & Cursor (Model Context Protocol)
+
+Connect Waan to **Claude Desktop** or **Cursor** to turn AI into an autonomous executive assistant.
+
+#### Claude Desktop Stdio Config:
 Add this entry to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
@@ -105,11 +116,17 @@ Add this entry to your Claude Desktop configuration (`~/Library/Application Supp
   "mcpServers": {
     "waan": {
       "command": "python3",
-      "args": ["/ABSOLUTE/PATH/TO/PM/mcp_server.py"]
+      "args": ["/Users/YOUR_USER/.waan/mcp_server.py"]
     }
   }
 }
 ```
+
+#### Cursor / SSE Config:
+In Cursor Settings > Features > MCP, add:
+* **Name:** Waan
+* **Type:** `sse`
+* **URL:** `http://127.0.0.1:8765/sse`
 
 #### Example Prompts:
 * *"What pending tasks do I have scheduled for today?"*
@@ -119,11 +136,16 @@ Add this entry to your Claude Desktop configuration (`~/Library/Application Supp
 
 ---
 
-### 2. Terminal CLI (`bin/waan`)
+### 3. Terminal CLI (`bin/waan`)
 
-Manage tasks directly from your shell, cron jobs, or local automation scripts:
+Manage tasks and MCP Server directly from your shell, cron jobs, or local automation scripts:
 
 ```bash
+# MCP Server Controls
+./bin/waan mcp status      # Check if MCP server is active or stopped
+./bin/waan mcp start       # Start MCP background server on port 8765
+./bin/waan mcp stop        # Stop MCP server
+
 # Add a task
 ./bin/waan add "Finish security audit" --due today --priority urgent
 
@@ -162,11 +184,13 @@ test_breakdown_task (test_waan.TestCliOperations) ... ok
 test_complete_and_delete_task (test_waan.TestCliOperations) ... ok
 test_resolve_due_date (test_waan.TestCliOperations) ... ok
 test_schema_creation_and_wal_mode (test_waan.TestDatabaseSchema) ... ok
+test_mcp_status_toggle (test_waan.TestMcpServerProtocol) ... ok
+test_mcp_tool_when_disabled (test_waan.TestMcpServerProtocol) ... ok
 test_tool_call_add_and_list (test_waan.TestMcpServerProtocol) ... ok
 test_tool_definitions (test_waan.TestMcpServerProtocol) ... ok
 test_unknown_tool_call (test_waan.TestMcpServerProtocol) ... ok
 
-Ran 8 tests in 0.010s
+Ran 10 tests in 0.014s
 OK
 ```
 
