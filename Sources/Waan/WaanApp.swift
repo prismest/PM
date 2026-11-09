@@ -17,7 +17,7 @@ struct WaanApp: App {
 
         Window("Waan", id: "main-window") {
             MainWindowView(store: store, mcpServer: mcpServer)
-                .frame(minWidth: 780, minHeight: 520)
+                .frame(minWidth: 860, minHeight: 540)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
