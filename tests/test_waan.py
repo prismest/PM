@@ -194,7 +194,6 @@ class TestMcpServerProtocol(WaanBaseTestCase):
         self.assertTrue(resp.get("result", {}).get("isError", False))
         self.assertIn("turned OFF", resp["result"]["content"][0]["text"])
 
-        # Re-enable
         mcp_server.set_mcp_status(enabled=True)
         resp_enabled = mcp_server.process_jsonrpc_request(req)
         self.assertNotIn("isError", resp_enabled.get("result", {}))
