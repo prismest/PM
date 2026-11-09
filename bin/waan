@@ -249,28 +249,18 @@ def _handle_mcp_start(pid, port):
     else:
         print("Failed to start Waan MCP Server")
 
-def _kill_process_gracefully(pid):
-    try:
-        os.kill(pid, signal.SIGTERM)
-        time.sleep(0.2)
-        if _is_pid_alive(pid):
-            os.kill(pid, signal.SIGKILL)
-    except OSError:
-        pass
-
 def _handle_mcp_stop(pid_file, status_file, pid):
     if not _is_pid_alive(pid):
         print("Waan MCP Server is not running.")
         return
 
-    _kill_process_gracefully(pid)
     try:
+        os.kill(pid, signal.SIGTERM)
+        time.sleep(0.2)
+        if _is_pid_alive(pid):
+            os.kill(pid, signal.SIGKILL)
         if os.path.exists(pid_file):
             os.remove(pid_file)
-    except OSError:
-        pass
-
-    try:
         with open(status_file, "w") as f:
             json.dump({"enabled": False, "running": False, "port": 8765, "pid": None}, f, indent=2)
     except OSError:

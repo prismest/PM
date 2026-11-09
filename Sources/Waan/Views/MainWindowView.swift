@@ -244,7 +244,6 @@ struct AIGuideSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var copiedClaude: Bool = false
     @State private var copiedSSE: Bool = false
-    @State private var testStatus: String? = nil
 
     private var claudeConfigJson: String {
         let script = mcpServer.resolveScriptPath()
@@ -254,18 +253,6 @@ struct AIGuideSheetView: View {
     "waan": {
       "command": "python3",
       "args": ["\(script)"]
-    }
-  }
-}
-"""
-    }
-
-    private var sseConfigJson: String {
-        return """
-{
-  "mcpServers": {
-    "waan": {
-      "url": "http://127.0.0.1:\(mcpServer.port)/sse"
     }
   }
 }
