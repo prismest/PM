@@ -15,9 +15,10 @@ import urllib.parse
 import http.server
 from datetime import datetime, date
 
+STATUS_FILENAME = "mcp_status.json"
 DB_DIR = os.path.expanduser("~/Library/Application Support/Waan")
 DB_PATH = os.path.join(DB_DIR, "tasks.db")
-STATUS_FILE = os.path.join(DB_DIR, "mcp_status.json")
+STATUS_FILE = os.path.join(DB_DIR, STATUS_FILENAME)
 JSON_CONTENT_TYPE = "application/json"
 
 def get_mcp_status():
@@ -129,6 +130,20 @@ TOOLS = [
         }
     },
     {
+        "name": "waan_update_task",
+        "description": "Update or reschedule an existing task in Waan (change due date, priority, or title).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": TARGET_DESC},
+                "due_date": {"type": "string", "description": "New due date: 'today', 'tomorrow', 'none', or 'YYYY-MM-DD'"},
+                "priority": {"type": "string", "enum": ["low", "normal", "high", "urgent"], "description": "New priority"},
+                "title": {"type": "string", "description": "New title for the task"}
+            },
+            "required": ["target"]
+        }
+    },
+    {
         "name": "waan_delete_task",
         "description": "Delete a task from Waan.",
         "inputSchema": {
@@ -182,10 +197,15 @@ def tool_list_tasks(cursor, args):
         })
     return json.dumps(tasks, ensure_ascii=False, indent=2)
 
+SQL_FIND_TASK = "SELECT id, title FROM tasks WHERE id = ? OR title LIKE ? LIMIT 1"
+
+def find_task(cursor, target):
+    cursor.execute(SQL_FIND_TASK, (target, f"%{target}%"))
+    return cursor.fetchone()
+
 def tool_complete_task(cursor, args):
     target = args.get("target")
-    cursor.execute("SELECT id, title FROM tasks WHERE id = ? OR title LIKE ? LIMIT 1", (target, f"%{target}%"))
-    row = cursor.fetchone()
+    row = find_task(cursor, target)
     if not row:
         return f"Task not found matching: {target}"
     task_id, title = row[0], row[1]
@@ -208,19 +228,46 @@ def tool_breakdown_task(cursor, args):
 
 def tool_delete_task(cursor, args):
     target = args.get("target")
-    cursor.execute("SELECT id, title FROM tasks WHERE id = ? OR title LIKE ? LIMIT 1", (target, f"%{target}%"))
-    row = cursor.fetchone()
+    row = find_task(cursor, target)
     if not row:
         return f"Task not found matching: {target}"
     task_id, title = row[0], row[1]
     cursor.execute("DELETE FROM tasks WHERE id=?", (task_id,))
     return f"Task '{title}' deleted."
 
+def tool_update_task(cursor, args):
+    target = args.get("target")
+    row = find_task(cursor, target)
+    if not row:
+        return f"Task not found matching: {target}"
+    task_id, title = row[0], row[1]
+
+    updates = []
+    params = []
+    if "title" in args and args["title"]:
+        updates.append("title = ?")
+        params.append(args["title"])
+    if "due_date" in args:
+        today_val = date.today()
+        due_map = {"today": today_val.isoformat(), "tomorrow": date.fromordinal(today_val.toordinal() + 1).isoformat(), "none": None}
+        updates.append("due_date = ?")
+        params.append(due_map.get(args["due_date"], args["due_date"]))
+    if "priority" in args and args["priority"]:
+        updates.append("priority = ?")
+        params.append(args["priority"])
+
+    if not updates:
+        return f"No changes provided for '{title}'"
+    params.append(task_id)
+    cursor.execute(f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?", params)
+    return f"Task '{title}' updated successfully."
+
 TOOL_HANDLERS = {
     "waan_add_task": tool_add_task,
     "waan_list_tasks": tool_list_tasks,
     "waan_complete_task": tool_complete_task,
     "waan_breakdown_task": tool_breakdown_task,
+    "waan_update_task": tool_update_task,
     "waan_delete_task": tool_delete_task,
 }
 

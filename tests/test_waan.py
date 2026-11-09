@@ -160,6 +160,10 @@ class TestMcpServerProtocol(WaanBaseTestCase):
         conn.commit()
         self.assertIn("marked as completed", done_res)
 
+        update_res = mcp_server.tool_update_task(cursor, {"target": "MCP Task", "due_date": "tomorrow", "priority": "urgent"})
+        conn.commit()
+        self.assertIn("updated successfully", update_res)
+
         del_res = mcp_server.tool_delete_task(cursor, {"target": "MCP Task"})
         conn.commit()
         self.assertIn("deleted", del_res)
