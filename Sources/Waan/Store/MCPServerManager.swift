@@ -8,6 +8,7 @@ public final class MCPServerManager: ObservableObject {
 
     @Published public var isRunning: Bool = false
     @Published public var port: Int = 8765
+    @Published public var statusMessage: String = "Stopped"
     @Published public var isStarting: Bool = false
 
     private var process: Process?
@@ -51,11 +52,37 @@ public final class MCPServerManager: ObservableObject {
     }
 
     public func resolveScriptPath() -> String {
+        // 1. Bundle Resources
         if let resPath = Foundation.Bundle.main.path(forResource: "mcp_server", ofType: "py"),
            FileManager.default.fileExists(atPath: resPath) {
             return resPath
         }
-        return dotWaanDir.appendingPathComponent("mcp_server.py").path
+
+        // 2. In ~/.waan/mcp_server.py
+        let dotPath = dotWaanDir.appendingPathComponent("mcp_server.py").path
+        if FileManager.default.fileExists(atPath: dotPath) {
+            return dotPath
+        }
+
+        // 3. Alongside .app bundle
+        let adjacent = Foundation.Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("mcp_server.py").path
+        if FileManager.default.fileExists(atPath: adjacent) {
+            return adjacent
+        }
+
+        // 4. Current working directory
+        let cwdPath = FileManager.default.currentDirectoryPath + "/mcp_server.py"
+        if FileManager.default.fileExists(atPath: cwdPath) {
+            return cwdPath
+        }
+
+        // 5. Development path fallback
+        let devPath = "/Users/hqit52mb/Documents/waan/mcp_server.py"
+        if FileManager.default.fileExists(atPath: devPath) {
+            return devPath
+        }
+
+        return dotPath
     }
 
     private func syncScriptToDotWaan() {
@@ -72,6 +99,7 @@ public final class MCPServerManager: ObservableObject {
     public func checkStatus() {
         if let proc = process, proc.isRunning {
             self.isRunning = true
+            self.statusMessage = "Port \(port) (Active)"
             return
         }
 
@@ -79,11 +107,13 @@ public final class MCPServerManager: ObservableObject {
            let pid = Int32(pidStr.trimmingCharacters(in: .whitespacesAndNewlines)) {
             if kill(pid, 0) == 0 {
                 self.isRunning = true
+                self.statusMessage = "Port \(port) (PID \(pid))"
                 return
             }
         }
 
         self.isRunning = false
+        self.statusMessage = "Stopped"
     }
 
     public func start() {
@@ -91,12 +121,14 @@ public final class MCPServerManager: ObservableObject {
         if isRunning { return }
 
         isStarting = true
+        statusMessage = "Starting..."
 
         let script = resolveScriptPath()
         syncScriptToDotWaan()
 
         guard FileManager.default.fileExists(atPath: script) else {
             isStarting = false
+            statusMessage = "Script not found"
             return
         }
 
@@ -112,6 +144,7 @@ public final class MCPServerManager: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.isRunning = false
                 self?.isStarting = false
+                self?.statusMessage = "Stopped"
                 self?.process = nil
             }
         }
@@ -127,6 +160,7 @@ public final class MCPServerManager: ObservableObject {
             }
         } catch {
             isStarting = false
+            statusMessage = "Error: \(error.localizedDescription)"
             process = nil
         }
     }
@@ -160,5 +194,14 @@ public final class MCPServerManager: ObservableObject {
 
         isRunning = false
         isStarting = false
+        statusMessage = "Stopped"
+    }
+
+    public func toggle() {
+        if isRunning {
+            stop()
+        } else {
+            start()
+        }
     }
 }

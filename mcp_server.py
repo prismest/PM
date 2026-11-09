@@ -427,11 +427,23 @@ def main():
     parser = argparse.ArgumentParser(description="Waan MCP Server")
     parser.add_argument("--port", type=int, help="Run HTTP/SSE server on specified port")
     parser.add_argument("--status", action="store_true", help="Print MCP Server status")
+    parser.add_argument("--enable", action="store_true", help="Enable MCP Server")
+    parser.add_argument("--disable", action="store_true", help="Disable MCP Server")
 
     args, _ = parser.parse_known_args()
 
     if args.status:
         print(json.dumps(get_mcp_status(), indent=2))
+        return
+
+    if args.enable:
+        set_mcp_status(enabled=True)
+        print("MCP Server enabled.")
+        return
+
+    if args.disable:
+        set_mcp_status(enabled=False)
+        print("MCP Server disabled.")
         return
 
     if args.port:
