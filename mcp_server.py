@@ -30,7 +30,7 @@ def get_mcp_status():
     return {"enabled": True, "running": False, "port": 8765}
 
 def set_mcp_status(enabled=True, running=False, port=8765, pid=None):
-    os.makedirs(DB_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
     status = {
         "enabled": bool(enabled),
         "running": bool(running),

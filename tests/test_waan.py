@@ -36,12 +36,14 @@ class WaanBaseTestCase(unittest.TestCase):
 
         self.patch_mcp_db = patch("mcp_server.DB_DIR", self.temp_dir.name)
         self.patch_mcp_path = patch("mcp_server.DB_PATH", self.db_path)
+        self.patch_mcp_status = patch("mcp_server.STATUS_FILE", os.path.join(self.temp_dir.name, "mcp_status.json"))
 
         self.patch_waan_db.start()
         self.patch_waan_path.start()
         self.patch_waan_dot.start()
         self.patch_mcp_db.start()
         self.patch_mcp_path.start()
+        self.patch_mcp_status.start()
 
     def tearDown(self):
         self.patch_waan_db.stop()
@@ -49,6 +51,7 @@ class WaanBaseTestCase(unittest.TestCase):
         self.patch_waan_dot.stop()
         self.patch_mcp_db.stop()
         self.patch_mcp_path.stop()
+        self.patch_mcp_status.stop()
         self.temp_dir.cleanup()
 
 
