@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct MainWindowView: View {
     @ObservedObject var store: TaskStore
+    @ObservedObject var mcpServer: MCPServerManager = .shared
     @State private var showingAIGuide: Bool = false
 
     public var body: some View {
@@ -41,26 +42,40 @@ public struct MainWindowView: View {
 
                 Spacer()
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 8, height: 8)
-                        Text("AI Harness Active")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .center) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                                .frame(width: 8, height: 8)
+                                .shadow(color: mcpServer.isRunning ? Color.green.opacity(0.4) : Color.clear, radius: 3)
+                            Text("MCP Server")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: Binding(
+                            get: { mcpServer.isRunning },
+                            set: { $0 ? mcpServer.start() : mcpServer.stop() }
+                        ))
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+                        .help(mcpServer.isRunning ? "Stop MCP Server" : "Start MCP Server")
                     }
 
-                    Text("~/.waan/tasks.db ready for Claude, Cursor, MCP")
+                    Text(mcpServer.isRunning ? "Port \(String(mcpServer.port)) • Ready for Claude & Cursor" : "Turn ON to enable AI harness bridge")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                         .lineLimit(2)
 
                     Button(action: { showingAIGuide.toggle() }) {
                         HStack(spacing: 4) {
-                            Image(systemName: "terminal.fill")
-                                .font(.system(size: 9))
-                            Text("AI Integration Guide")
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 10))
+                            Text("MCP & AI Config")
                                 .font(.system(size: 10, weight: .medium))
                         }
                         .foregroundColor(.accentColor)
@@ -154,7 +169,7 @@ public struct MainWindowView: View {
                 }
             }
             .sheet(isPresented: $showingAIGuide) {
-                AIGuideSheetView()
+                AIGuideSheetView(mcpServer: mcpServer)
             }
         }
         .frame(minWidth: 780, minHeight: 520)
@@ -184,8 +199,46 @@ public struct MainWindowView: View {
     }
 }
 
+struct CopyButton: View {
+    let text: String
+    let label: String
+    @State private var copied = false
+
+    var body: some View {
+        Button(action: {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            copied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+        }) {
+            HStack(spacing: 4) {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                Text(copied ? "Copied!" : label)
+            }
+            .font(.system(size: 11))
+            .foregroundColor(copied ? .green : .accentColor)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct AIGuideSheetView: View {
+    @ObservedObject var mcpServer: MCPServerManager
     @Environment(\.dismiss) private var dismiss
+
+    private var claudeConfigJson: String {
+        let script = mcpServer.resolveScriptPath()
+        return """
+{
+  "mcpServers": {
+    "waan": {
+      "command": "python3",
+      "args": ["\(script)"]
+    }
+  }
+}
+"""
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -193,41 +246,78 @@ struct AIGuideSheetView: View {
                 Image(systemName: "cpu.fill")
                     .foregroundColor(.accentColor)
                     .font(.system(size: 18))
-                Text("AI Harness Connection Guide (Claude / Cursor / CLI)")
+                Text("AI Harness Connection Guide (MCP)")
                     .font(.system(size: 15, weight: .bold))
                 Spacer()
                 Button("Close") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
 
-            Divider()
-
-            Text("Waan stores data in SQLite at **~/.waan/tasks.db**, allowing external AI harnesses to read and create tasks directly:")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("1. CLI Command (Fast & Scriptable):")
-                    .font(.system(size: 12, weight: .semibold))
-                Text("`./bin/waan add \"Prepare slide deck\" --due today --priority high`")
-                    .font(.system(size: 11, design: .monospaced))
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black.opacity(0.06))
-                    .cornerRadius(6)
-
-                Text("2. Claude Desktop / Cursor via MCP:")
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.top, 4)
-                Text("Use `mcp_server.py` in this folder to let Claude call tools like `waan_add_task` and `waan_list_tasks` using your existing subscription.")
-                    .font(.system(size: 11))
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                    .frame(width: 8, height: 8)
+                Text(mcpServer.isRunning ? "MCP Server Active on port \(String(mcpServer.port))" : "MCP Server is Stopped (toggle ON in sidebar)")
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
+            }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("1. Claude Desktop Config (Stdio):")
+                                .font(.system(size: 12, weight: .semibold))
+                            Spacer()
+                            CopyButton(text: claudeConfigJson, label: "Copy Config")
+                        }
+
+                        Text("Add to ~/Library/Application Support/Claude/claude_desktop_config.json:")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+
+                        Text(claudeConfigJson)
+                            .font(.system(size: 10, design: .monospaced))
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.06))
+                            .cornerRadius(6)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("2. Cursor / SSE Remote Integration:")
+                                .font(.system(size: 12, weight: .semibold))
+                            Spacer()
+                            CopyButton(text: "http://127.0.0.1:\(mcpServer.port)/sse", label: "Copy SSE URL")
+                        }
+
+                        Text("SSE Endpoint: http://127.0.0.1:\(mcpServer.port)/sse")
+                            .font(.system(size: 10, design: .monospaced))
+                            .padding(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.06))
+                            .cornerRadius(6)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("3. Terminal Control:")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("./bin/waan mcp start  |  ./bin/waan mcp stop  |  ./bin/waan mcp status")
+                            .font(.system(size: 10, design: .monospaced))
+                            .padding(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.06))
+                            .cornerRadius(6)
+                    }
+                }
+                .padding(.vertical, 4)
             }
 
             Spacer()
         }
         .padding(20)
-        .frame(width: 520, height: 320)
+        .frame(width: 540, height: 420)
     }
 }
 

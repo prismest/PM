@@ -5,6 +5,9 @@ import sqlite3
 import json
 import uuid
 import argparse
+import subprocess
+import signal
+import time
 from datetime import datetime, date
 
 DB_DIR = os.path.expanduser("~/Library/Application Support/Waan")
@@ -201,6 +204,60 @@ def cmd_breakdown(args):
     else:
         print(f"Task not found: {args.target}")
 
+def _mcp_process_info(status_file):
+    try:
+        with open(status_file) as f:
+            status = json.load(f)
+            pid = status.get("pid")
+            if pid:
+                os.kill(pid, 0)
+                return pid, True, status.get("port", 8765)
+    except Exception:
+        pass
+    return None, False, 8765
+
+def _start_mcp(script_path, port):
+    proc = subprocess.Popen([sys.executable, script_path, "--port", str(port)],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(0.3)
+    if proc.poll() is None:
+        print(f"Waan MCP Server started on port {port} (PID: {proc.pid})")
+    else:
+        print("Failed to start Waan MCP Server")
+
+def _stop_mcp(status_file, pid):
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except OSError:
+        pass
+    with open(status_file, "w") as f:
+        json.dump({"enabled": False, "running": False, "port": 8765, "pid": None}, f, indent=2)
+    print(f"Waan MCP Server (PID: {pid}) stopped.")
+
+def cmd_mcp(args):
+    action = args.action or "status"
+    status_file = os.path.join(DB_DIR, "mcp_status.json")
+    pid, alive, port = _mcp_process_info(status_file)
+
+    if action == "start":
+        if alive:
+            print(f"Waan MCP Server is already running (PID: {pid})")
+            return
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        script = os.path.join(base_dir, "mcp_server.py")
+        if not os.path.exists(script):
+            script = os.path.expanduser("~/.waan/mcp_server.py")
+        _start_mcp(script, args.port)
+    elif action == "stop":
+        if not alive:
+            print("Waan MCP Server is not running.")
+            return
+        _stop_mcp(status_file, pid)
+    elif alive:
+        print(f"Waan MCP Server: Active (PID: {pid}, Port: {port})")
+    else:
+        print("Waan MCP Server: Stopped")
+
 TARGET_HELP = "Task ID or search keyword"
 
 def build_parser():
@@ -236,6 +293,11 @@ def build_parser():
     p_bd.add_argument("target", help=TARGET_HELP)
     p_bd.add_argument("subtasks", nargs="+", help="Subtasks to add")
     p_bd.set_defaults(func=cmd_breakdown)
+
+    p_mcp = subparsers.add_parser("mcp", help="Manage MCP Server (start, stop, status)")
+    p_mcp.add_argument("action", nargs="?", choices=["start", "stop", "status"], default="status", help="Action to perform")
+    p_mcp.add_argument("--port", type=int, default=8765, help="Port to listen on (default: 8765)")
+    p_mcp.set_defaults(func=cmd_mcp)
 
     return parser
 

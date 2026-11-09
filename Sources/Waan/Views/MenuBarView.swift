@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct MenuBarView: View {
     @ObservedObject var store: TaskStore
+    @ObservedObject var mcpServer: MCPServerManager = .shared
     let onOpenMainWindow: () -> Void
 
     public var body: some View {
@@ -71,20 +72,34 @@ public struct MenuBarView: View {
 
             Divider()
 
-            HStack {
+            HStack(spacing: 8) {
                 HStack(spacing: 5) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
                         .frame(width: 6, height: 6)
-                    Text("AI Harness Bridge Ready")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+                        .shadow(color: mcpServer.isRunning ? Color.green.opacity(0.4) : Color.clear, radius: 2)
+                    Text(mcpServer.isRunning ? "MCP Server Active" : "MCP Server Off")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(mcpServer.isRunning ? .primary : .secondary)
                 }
-                .help("Database at ~/.waan/tasks.db ready for AI connection")
+                .help(mcpServer.isRunning ? "MCP Server running on port \(String(mcpServer.port))" : "MCP Server stopped")
 
                 Spacer()
 
+                Toggle("", isOn: Binding(
+                    get: { mcpServer.isRunning },
+                    set: { $0 ? mcpServer.start() : mcpServer.stop() }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
+                .help(mcpServer.isRunning ? "Turn off MCP Server" : "Turn on MCP Server")
+
+                Divider()
+                    .frame(height: 12)
+
                 Button("Quit") {
+                    mcpServer.stop()
                     NSApplication.shared.terminate(nil)
                 }
                 .font(.system(size: 11))

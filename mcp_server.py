@@ -8,10 +8,42 @@ import json
 import os
 import sqlite3
 import uuid
+import signal
+import argparse
+import time
+import urllib.parse
+import http.server
 from datetime import datetime, date
 
 DB_DIR = os.path.expanduser("~/Library/Application Support/Waan")
 DB_PATH = os.path.join(DB_DIR, "tasks.db")
+STATUS_FILE = os.path.join(DB_DIR, "mcp_status.json")
+JSON_CONTENT_TYPE = "application/json"
+
+def get_mcp_status():
+    if os.path.exists(STATUS_FILE):
+        try:
+            with open(STATUS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"enabled": True, "running": False, "port": 8765}
+
+def set_mcp_status(enabled=True, running=False, port=8765, pid=None):
+    os.makedirs(DB_DIR, exist_ok=True)
+    status = {
+        "enabled": bool(enabled),
+        "running": bool(running),
+        "port": int(port),
+        "pid": pid,
+        "updated_at": datetime.now().isoformat()
+    }
+    with open(STATUS_FILE, "w") as f:
+        json.dump(status, f, indent=2)
+    return status
+
+def is_mcp_enabled():
+    return get_mcp_status().get("enabled", True)
 
 def get_db():
     os.makedirs(DB_DIR, exist_ok=True)
@@ -206,7 +238,188 @@ def handle_tool_call(name, args):
     finally:
         conn.close()
 
+def process_jsonrpc_request(req):
+    method = req.get("method")
+    msg_id = req.get("id")
+
+    if method == "notifications/initialized":
+        return None
+
+    if method == "ping":
+        return {"jsonrpc": "2.0", "id": msg_id, "result": {}}
+
+    if method == "initialize":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "waan-mcp", "version": "1.0.0"}
+            }
+        }
+
+    if method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {"tools": TOOLS}
+        }
+
+    if method == "tools/call":
+        if not is_mcp_enabled():
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "content": [{"type": "text", "text": "Waan MCP Server is currently turned OFF. Please toggle it ON in Waan."}],
+                    "isError": True
+                }
+            }
+
+        params = req.get("params", {})
+        name = params.get("name")
+        args = params.get("arguments", {})
+        result_text = handle_tool_call(name, args)
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "content": [{"type": "text", "text": result_text}]
+            }
+        }
+
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "error": {"code": -32601, "message": f"Method not found: {method}"}
+    }
+
+class McpRequestHandler(http.server.BaseHTTPRequestHandler):
+    def send_cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_cors_headers()
+        self.end_headers()
+
+    def do_HEAD(self):
+        self.do_GET()
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path in ["/", "/status", "/health"]:
+            status_data = {
+                "status": "running" if is_mcp_enabled() else "disabled",
+                "enabled": is_mcp_enabled(),
+                "name": "waan-mcp",
+                "version": "1.0.0",
+                "tools_count": len(TOOLS),
+                "tools": [t["name"] for t in TOOLS]
+            }
+            body = json.dumps(status_data, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", JSON_CONTENT_TYPE)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(body)
+        elif parsed.path == "/sse":
+            session_id = str(uuid.uuid4())
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_cors_headers()
+            self.end_headers()
+
+            host = self.headers.get("Host", "127.0.0.1:8765")
+            proto = "https" if "ngrok" in host or self.headers.get("X-Forwarded-Proto") == "https" else "http"
+            endpoint_url = f"{proto}://{host}/message?sessionId={session_id}"
+            endpoint_msg = f"event: endpoint\r\ndata: {endpoint_url}\r\n\r\n"
+            self.wfile.write(endpoint_msg.encode("utf-8"))
+            self.wfile.flush()
+
+            try:
+                while True:
+                    time.sleep(15)
+                    self.wfile.write(b": keepalive\r\n\r\n")
+                    self.wfile.flush()
+            except Exception:
+                pass
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        raw_body = self.rfile.read(content_length).decode("utf-8")
+        try:
+            req = json.loads(raw_body)
+        except Exception:
+            err_resp = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
+            body = json.dumps(err_resp).encode("utf-8")
+            self.send_response(400)
+            self.send_header("Content-Type", JSON_CONTENT_TYPE)
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        resp = process_jsonrpc_request(req)
+        if resp is None:
+            self.send_response(204)
+            self.send_cors_headers()
+            self.end_headers()
+            return
+
+        body = json.dumps(resp, ensure_ascii=False).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", JSON_CONTENT_TYPE)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_cors_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format, *args):
+        # Silence default request logs to prevent cluttering stdio JSON-RPC stream
+        pass
+
+def run_http_server(port=8765):
+    pid = os.getpid()
+    set_mcp_status(enabled=True, running=True, port=port, pid=pid)
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), McpRequestHandler)
+    server.daemon_threads = True
+    print(f"Waan MCP Server started on port {port} (PID: {pid})", file=sys.stderr)
+
+    signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+
+    try:
+        server.serve_forever()  # NOSONAR python:S5332
+    finally:
+        set_mcp_status(enabled=False, running=False, port=port, pid=None)
+
 def main():
+    parser = argparse.ArgumentParser(description="Waan MCP Server")
+    parser.add_argument("--port", type=int, help="Run HTTP/SSE server on specified port")
+    parser.add_argument("--status", action="store_true", help="Print MCP Server status")
+
+    args, _ = parser.parse_known_args()
+
+    if args.status:
+        print(json.dumps(get_mcp_status(), indent=2))
+        return
+
+    if args.port:
+        run_http_server(args.port)
+        return
+
+    # Default to stdio JSON-RPC loop
     while True:
         line = sys.stdin.readline()
         if not line:
@@ -216,46 +429,8 @@ def main():
         except Exception:
             continue
 
-        method = req.get("method")
-        msg_id = req.get("id")
-
-        if method == "notifications/initialized":
-            continue
-
-        if method == "initialize":
-            resp = {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "waan-mcp", "version": "1.0.0"}
-                }
-            }
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
-
-        elif method == "tools/list":
-            resp = {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {"tools": TOOLS}
-            }
-            sys.stdout.write(json.dumps(resp) + "\n")
-            sys.stdout.flush()
-
-        elif method == "tools/call":
-            params = req.get("params", {})
-            name = params.get("name")
-            args = params.get("arguments", {})
-            result_text = handle_tool_call(name, args)
-            resp = {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {
-                    "content": [{"type": "text", "text": result_text}]
-                }
-            }
+        resp = process_jsonrpc_request(req)
+        if resp is not None:
             sys.stdout.write(json.dumps(resp) + "\n")
             sys.stdout.flush()
 

@@ -166,6 +166,32 @@ class TestMcpServerProtocol(WaanBaseTestCase):
         res = mcp_server.handle_tool_call("unknown_tool", {})
         self.assertEqual(res, "Unknown tool")
 
+    def test_mcp_status_toggle(self):
+        status = mcp_server.set_mcp_status(enabled=False)
+        self.assertFalse(status["enabled"])
+        self.assertFalse(mcp_server.is_mcp_enabled())
+
+        status_on = mcp_server.set_mcp_status(enabled=True)
+        self.assertTrue(status_on["enabled"])
+        self.assertTrue(mcp_server.is_mcp_enabled())
+
+    def test_mcp_tool_when_disabled(self):
+        mcp_server.set_mcp_status(enabled=False)
+        req = {
+            "jsonrpc": "2.0",
+            "id": "test-1",
+            "method": "tools/call",
+            "params": {"name": "waan_list_tasks", "arguments": {}}
+        }
+        resp = mcp_server.process_jsonrpc_request(req)
+        self.assertTrue(resp.get("result", {}).get("isError", False))
+        self.assertIn("turned OFF", resp["result"]["content"][0]["text"])
+
+        # Re-enable
+        mcp_server.set_mcp_status(enabled=True)
+        resp_enabled = mcp_server.process_jsonrpc_request(req)
+        self.assertNotIn("isError", resp_enabled.get("result", {}))
+
 
 if __name__ == "__main__":
     unittest.main()
