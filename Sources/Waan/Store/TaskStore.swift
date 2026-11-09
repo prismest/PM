@@ -18,6 +18,16 @@ public enum FilterType: String, CaseIterable, Identifiable {
         case .completed: return "checkmark.circle.fill"
         }
     }
+
+    public func localizedTitle(for lang: AppLanguage) -> String {
+        switch self {
+        case .all: return lang == .th ? "งานทั้งหมด" : "All Tasks"
+        case .today: return lang == .th ? "วันนี้" : "Today"
+        case .pending: return lang == .th ? "รอดำเนินการ" : "Pending"
+        case .highPriority: return lang == .th ? "สำคัญสูง" : "High Priority"
+        case .completed: return lang == .th ? "เสร็จแล้ว" : "Completed"
+        }
+    }
 }
 
 @MainActor

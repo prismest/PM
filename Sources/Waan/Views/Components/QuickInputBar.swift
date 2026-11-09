@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct QuickInputBar: View {
     @ObservedObject var store: TaskStore
+    @ObservedObject var langManager: LanguageManager = .shared
     @State private var text: String = ""
     @State private var priority: Priority = .normal
     @State private var dueDateOption: String = "today"
@@ -13,7 +14,7 @@ public struct QuickInputBar: View {
                     .foregroundColor(.accentColor)
                     .font(.system(size: 16))
 
-                TextField("Add a task... (Press Return to add)", text: $text)
+                TextField(langManager.currentLanguage == .th ? "เพิ่มงานใหม่... (กด Return เพื่อเพิ่ม)" : "Add a task... (Press Return to add)", text: $text)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .onSubmit {
@@ -24,7 +25,7 @@ public struct QuickInputBar: View {
                     ForEach(Priority.allCases) { p in
                         Button(action: { priority = p }) {
                             HStack {
-                                Text(p.displayName)
+                                Text(p.localizedName(for: langManager.currentLanguage))
                                 if priority == p {
                                     Image(systemName: "checkmark")
                                 }
@@ -33,7 +34,7 @@ public struct QuickInputBar: View {
                     }
                 } label: {
                     HStack(spacing: 3) {
-                        Text(priority.displayName.prefix(4))
+                        Text(priority.localizedName(for: langManager.currentLanguage).prefix(4))
                             .font(.system(size: 11))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8))
@@ -47,9 +48,9 @@ public struct QuickInputBar: View {
                 .fixedSize()
 
                 Menu {
-                    Button("Today") { dueDateOption = "today" }
-                    Button("Tomorrow") { dueDateOption = "tomorrow" }
-                    Button("No Date") { dueDateOption = "none" }
+                    Button(langManager.currentLanguage == .th ? "วันนี้" : "Today") { dueDateOption = "today" }
+                    Button(langManager.currentLanguage == .th ? "พรุ่งนี้" : "Tomorrow") { dueDateOption = "tomorrow" }
+                    Button(langManager.currentLanguage == .th ? "ไม่มีกำหนด" : "No Date") { dueDateOption = "none" }
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "calendar")
@@ -66,7 +67,7 @@ public struct QuickInputBar: View {
                 .fixedSize()
 
                 Button(action: submit) {
-                    Text("Add")
+                    Text(langManager.text(.add))
                         .font(.system(size: 12, weight: .semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -92,7 +93,12 @@ public struct QuickInputBar: View {
     }
 
     private var dueDateLabel: String {
-        dueDateOption == "none" ? "None" : dueDateOption.capitalized
+        let isTh = langManager.currentLanguage == .th
+        switch dueDateOption {
+        case "today": return isTh ? "วันนี้" : "Today"
+        case "tomorrow": return isTh ? "พรุ่งนี้" : "Tomorrow"
+        default: return isTh ? "ไม่มี" : "None"
+        }
     }
 
     private func submit() {

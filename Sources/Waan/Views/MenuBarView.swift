@@ -3,6 +3,7 @@ import SwiftUI
 public struct MenuBarView: View {
     @ObservedObject var store: TaskStore
     @ObservedObject var mcpServer: MCPServerManager = .shared
+    @ObservedObject var langManager: LanguageManager = .shared
     let onOpenMainWindow: () -> Void
 
     public var body: some View {
@@ -17,7 +18,7 @@ public struct MenuBarView: View {
 
                 Spacer()
 
-                Text("\(store.todayTasksCount) today")
+                Text("\(store.todayTasksCount) \(langManager.currentLanguage == .th ? "วันนี้" : "today")")
                     .font(.system(size: 11, weight: .medium))
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
@@ -31,7 +32,7 @@ public struct MenuBarView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Open Main Window")
+                .help(langManager.text(.openMainWindow))
             }
             .padding(.horizontal, 14)
             .padding(.top, 12)
@@ -51,7 +52,7 @@ public struct MenuBarView: View {
                     Image(systemName: "checkmark.seal")
                         .font(.system(size: 32))
                         .foregroundColor(.secondary.opacity(0.4))
-                    Text("All tasks completed for today!")
+                    Text(langManager.currentLanguage == .th ? "ทำงานของวันนี้ครบหมดแล้ว!" : "All tasks completed for today!")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -78,7 +79,7 @@ public struct MenuBarView: View {
                         .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
                         .frame(width: 6, height: 6)
                         .shadow(color: mcpServer.isRunning ? Color.green.opacity(0.4) : Color.clear, radius: 2)
-                    Text(mcpServer.isRunning ? "MCP Server Active" : "MCP Server Off")
+                    Text(mcpServer.isRunning ? (langManager.currentLanguage == .th ? "เซิร์ฟเวอร์ MCP กำลังทำงาน" : "MCP Server Active") : (langManager.currentLanguage == .th ? "เซิร์ฟเวอร์ MCP ปิดอยู่" : "MCP Server Off"))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(mcpServer.isRunning ? .primary : .secondary)
                 }
@@ -98,7 +99,7 @@ public struct MenuBarView: View {
                 Divider()
                     .frame(height: 12)
 
-                Button("Quit") {
+                Button(langManager.text(.quit)) {
                     mcpServer.stop()
                     NSApplication.shared.terminate(nil)
                 }

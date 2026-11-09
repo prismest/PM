@@ -3,6 +3,7 @@ import SwiftUI
 public struct MainWindowView: View {
     @ObservedObject var store: TaskStore
     @ObservedObject var mcpServer: MCPServerManager = .shared
+    @ObservedObject var langManager: LanguageManager = .shared
     @State private var showingAIGuide: Bool = false
     @State private var showingChat: Bool = true
 
@@ -31,7 +32,7 @@ public struct MainWindowView: View {
                     set: { store.selectedFilter = $0 }
                 )) { filter in
                     HStack {
-                        Label(filter.rawValue, systemImage: filter.iconName)
+                        Label(filter.localizedTitle(for: langManager.currentLanguage), systemImage: filter.iconName)
                             .font(.system(size: 13))
                         Spacer()
                         countBadge(for: filter)
@@ -96,9 +97,9 @@ public struct MainWindowView: View {
                 VStack(spacing: 0) {
                     HStack(alignment: .center) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(store.selectedFilter.rawValue)
+                            Text(store.selectedFilter.localizedTitle(for: langManager.currentLanguage))
                                 .font(.system(size: 20, weight: .bold))
-                            Text("\(store.filteredTasks.count) tasks")
+                            Text(langManager.text(.taskCount(store.filteredTasks.count)))
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                         }
@@ -110,7 +111,7 @@ public struct MainWindowView: View {
                                 Image(systemName: "magnifyingglass")
                                     .foregroundColor(.secondary)
                                     .font(.system(size: 12))
-                                TextField("Search tasks...", text: $store.searchText)
+                                TextField(langManager.text(.searchPlaceholder), text: $store.searchText)
                                     .textFieldStyle(.plain)
                                     .font(.system(size: 12))
                                 if !store.searchText.isEmpty {
@@ -132,11 +133,26 @@ public struct MainWindowView: View {
                             )
                             .frame(width: 170)
 
+                            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { langManager.toggle() } }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "globe")
+                                        .font(.system(size: 11))
+                                    Text(langManager.currentLanguage.title)
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color.secondary.opacity(0.08))
+                                .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Switch Language (ไทย / English)")
+
                             Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showingChat.toggle() } }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "sparkles")
                                         .font(.system(size: 11))
-                                    Text("AI Chat")
+                                    Text(langManager.text(.aiChat))
                                         .font(.system(size: 11, weight: .medium))
                                 }
                                 .padding(.horizontal, 8)
