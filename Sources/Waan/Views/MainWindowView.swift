@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct MainWindowView: View {
     @ObservedObject var store: TaskStore
+    @ObservedObject var mcpServer: MCPServerManager = .shared
     @State private var showingAIGuide: Bool = false
 
     public var body: some View {
@@ -41,26 +42,46 @@ public struct MainWindowView: View {
 
                 Spacer()
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 8, height: 8)
-                        Text("AI Harness Active")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .center) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                                .frame(width: 8, height: 8)
+                                .shadow(color: mcpServer.isRunning ? Color.green.opacity(0.4) : Color.clear, radius: 3)
+                            Text("MCP Server")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: Binding(
+                            get: { mcpServer.isRunning },
+                            set: { newValue in
+                                if newValue {
+                                    mcpServer.start()
+                                } else {
+                                    mcpServer.stop()
+                                }
+                            }
+                        ))
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+                        .help(mcpServer.isRunning ? "Stop MCP Server" : "Start MCP Server")
                     }
 
-                    Text("~/.waan/tasks.db ready for Claude, Cursor, MCP")
+                    Text(mcpServer.isRunning ? "Port \(mcpServer.port) • Ready for Claude & Cursor" : "Turn ON to enable AI harness bridge")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                         .lineLimit(2)
 
                     Button(action: { showingAIGuide.toggle() }) {
                         HStack(spacing: 4) {
-                            Image(systemName: "terminal.fill")
-                                .font(.system(size: 9))
-                            Text("AI Integration Guide")
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 10))
+                            Text("MCP & AI Config")
                                 .font(.system(size: 10, weight: .medium))
                         }
                         .foregroundColor(.accentColor)
@@ -153,8 +174,42 @@ public struct MainWindowView: View {
                     }
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    HStack(spacing: 8) {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                                .frame(width: 7, height: 7)
+                                .shadow(color: mcpServer.isRunning ? Color.green.opacity(0.4) : Color.clear, radius: 2)
+                            Text(mcpServer.isRunning ? "MCP ON" : "MCP OFF")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(mcpServer.isRunning ? .primary : .secondary)
+                        }
+
+                        Toggle("", isOn: Binding(
+                            get: { mcpServer.isRunning },
+                            set: { newValue in
+                                if newValue {
+                                    mcpServer.start()
+                                } else {
+                                    mcpServer.stop()
+                                }
+                            }
+                        ))
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .help(mcpServer.isRunning ? "Turn off MCP Server" : "Turn on MCP Server")
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.secondary.opacity(0.08))
+                    .cornerRadius(6)
+                }
+            }
             .sheet(isPresented: $showingAIGuide) {
-                AIGuideSheetView()
+                AIGuideSheetView(mcpServer: mcpServer)
             }
         }
         .frame(minWidth: 780, minHeight: 520)
@@ -185,7 +240,37 @@ public struct MainWindowView: View {
 }
 
 struct AIGuideSheetView: View {
+    @ObservedObject var mcpServer: MCPServerManager
     @Environment(\.dismiss) private var dismiss
+    @State private var copiedClaude: Bool = false
+    @State private var copiedSSE: Bool = false
+    @State private var testStatus: String? = nil
+
+    private var claudeConfigJson: String {
+        let script = mcpServer.resolveScriptPath()
+        return """
+{
+  "mcpServers": {
+    "waan": {
+      "command": "python3",
+      "args": ["\(script)"]
+    }
+  }
+}
+"""
+    }
+
+    private var sseConfigJson: String {
+        return """
+{
+  "mcpServers": {
+    "waan": {
+      "url": "http://127.0.0.1:\(mcpServer.port)/sse"
+    }
+  }
+}
+"""
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -193,41 +278,147 @@ struct AIGuideSheetView: View {
                 Image(systemName: "cpu.fill")
                     .foregroundColor(.accentColor)
                     .font(.system(size: 18))
-                Text("AI Harness Connection Guide (Claude / Cursor / CLI)")
+                Text("AI Harness Connection Guide (MCP)")
                     .font(.system(size: 15, weight: .bold))
                 Spacer()
                 Button("Close") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
 
-            Divider()
+            // Interactive MCP Server Control Banner
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                    .frame(width: 12, height: 12)
+                    .shadow(color: mcpServer.isRunning ? Color.green.opacity(0.5) : Color.clear, radius: 4)
 
-            Text("Waan stores data in SQLite at **~/.waan/tasks.db**, allowing external AI harnesses to read and create tasks directly:")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mcpServer.isRunning ? "MCP Server Active (Port \(mcpServer.port))" : "MCP Server Stopped")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(mcpServer.isRunning ? "Accepting connections via stdio and http://127.0.0.1:\(mcpServer.port)" : "Toggle ON to allow Claude, Cursor, and scripts to access tasks")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("1. CLI Command (Fast & Scriptable):")
-                    .font(.system(size: 12, weight: .semibold))
-                Text("`./bin/waan add \"Prepare slide deck\" --due today --priority high`")
-                    .font(.system(size: 11, design: .monospaced))
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black.opacity(0.06))
-                    .cornerRadius(6)
+                Spacer()
 
-                Text("2. Claude Desktop / Cursor via MCP:")
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.top, 4)
-                Text("Use `mcp_server.py` in this folder to let Claude call tools like `waan_add_task` and `waan_list_tasks` using your existing subscription.")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                HStack(spacing: 8) {
+                    Text(mcpServer.isRunning ? "ON" : "OFF")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(mcpServer.isRunning ? .green : .secondary)
+
+                    Toggle("", isOn: Binding(
+                        get: { mcpServer.isRunning },
+                        set: { newValue in
+                            if newValue {
+                                mcpServer.start()
+                            } else {
+                                mcpServer.stop()
+                            }
+                        }
+                    ))
+                    .toggleStyle(.switch)
+                    .controlSize(.regular)
+                    .labelsHidden()
+                }
+            }
+            .padding(12)
+            .background(mcpServer.isRunning ? Color.green.opacity(0.08) : Color.secondary.opacity(0.08))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(mcpServer.isRunning ? Color.green.opacity(0.2) : Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    // 1. Claude Desktop Configuration
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("1. Claude Desktop Config (Stdio):")
+                                .font(.system(size: 12, weight: .semibold))
+                            Spacer()
+                            Button(action: {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(claudeConfigJson, forType: .string)
+                                copiedClaude = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    copiedClaude = false
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: copiedClaude ? "checkmark" : "doc.on.doc")
+                                    Text(copiedClaude ? "Copied!" : "Copy Config")
+                                }
+                                .font(.system(size: 11))
+                                .foregroundColor(copiedClaude ? .green : .accentColor)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        Text("Add to ~/Library/Application Support/Claude/claude_desktop_config.json:")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+
+                        Text(claudeConfigJson)
+                            .font(.system(size: 10, design: .monospaced))
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.06))
+                            .cornerRadius(6)
+                    }
+
+                    // 2. Cursor / SSE Configuration
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("2. Cursor / SSE Remote Integration:")
+                                .font(.system(size: 12, weight: .semibold))
+                            Spacer()
+                            Button(action: {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString("http://127.0.0.1:\(mcpServer.port)/sse", forType: .string)
+                                copiedSSE = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    copiedSSE = false
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: copiedSSE ? "checkmark" : "doc.on.doc")
+                                    Text(copiedSSE ? "Copied URL!" : "Copy SSE URL")
+                                }
+                                .font(.system(size: 11))
+                                .foregroundColor(copiedSSE ? .green : .accentColor)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        Text("SSE Endpoint: http://127.0.0.1:\(mcpServer.port)/sse")
+                            .font(.system(size: 10, design: .monospaced))
+                            .padding(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.06))
+                            .cornerRadius(6)
+                    }
+
+                    // 3. CLI Management
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("3. Terminal Control:")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("./bin/waan mcp start  |  ./bin/waan mcp stop  |  ./bin/waan mcp status")
+                            .font(.system(size: 10, design: .monospaced))
+                            .padding(6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.black.opacity(0.06))
+                            .cornerRadius(6)
+                    }
+                }
+                .padding(.vertical, 4)
             }
 
             Spacer()
         }
         .padding(20)
-        .frame(width: 520, height: 320)
+        .frame(width: 560, height: 480)
     }
 }
 

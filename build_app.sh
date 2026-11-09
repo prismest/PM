@@ -16,6 +16,9 @@ mkdir -p "${RESOURCES_DIR}"
 cp ".build/release/${APP_NAME}" "${MACOS_DIR}/${APP_NAME}"
 chmod +x "${MACOS_DIR}/${APP_NAME}"
 
+cp "mcp_server.py" "${RESOURCES_DIR}/mcp_server.py"
+chmod +x "${RESOURCES_DIR}/mcp_server.py"
+
 cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
