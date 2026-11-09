@@ -68,6 +68,7 @@ public final class MCPServerManager: ObservableObject {
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        proc.currentDirectoryURL = statusFileURL.deletingLastPathComponent()
         proc.arguments = [script, "--port", String(port)]
 
         let pipe = Pipe()
