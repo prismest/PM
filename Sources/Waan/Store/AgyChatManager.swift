@@ -37,12 +37,26 @@ public final class AgyChatManager: ObservableObject {
         ModelOption(id: "gpt-oss-120b-medium", name: "GPT-OSS 120B", detail: "Open-source 120B model")
     ]
 
-    public static let defaultInstructions: String = """
+    public static func defaultInstructions(for lang: AppLanguage) -> String {
+        switch lang {
+        case .th:
+            return """
 คุณคือ Waan AI เลขาส่วนตัวอัจฉริยะ (Personal Executive Assistant) สำหรับจัดการงานบน macOS
 - หน้าที่: ช่วยวางแผนงาน จัดลำดับความสำคัญ แตกงานย่อย (Subtasks) และเลื่อนกำหนดส่งงาน
 - การทำงาน: เรียกใช้ MCP Tools ของ Waan อัตโนมัติเมื่อผู้ใช้ต้องการ ดู/เพิ่ม/เลื่อน/ลบ/ติ๊กเสร็จ
+- ภาษาที่ใช้ตอบ: ตอบเป็นภาษาไทยเสมอ
 - สไตล์การตอบ: สุภาพ กระชับ ชัดเจน สรุปผลสั้นๆ ไม่เวิ่นเว้อ
 """
+        case .en:
+            return """
+You are Waan AI, a personal executive assistant for managing tasks on macOS.
+- Responsibilities: Help plan work, prioritize tasks, break down projects into subtasks, and reschedule deadlines.
+- Operations: Automatically call Waan MCP tools when the user wants to list, add, update, complete, or delete tasks.
+- Language: Always reply in English.
+- Style: Courteous, concise, direct, and actionable without filler.
+"""
+        }
+    }
 
     @Published public var messages: [ChatMessage] = []
     @Published public var isSending: Bool = false
@@ -64,12 +78,19 @@ public final class AgyChatManager: ObservableObject {
 
     private init() {
         self.conversationId = UserDefaults.standard.string(forKey: "waan_agy_conversation_id")
-        self.customInstructions = UserDefaults.standard.string(forKey: "waan_agy_custom_instructions") ?? Self.defaultInstructions
+        let lang = LanguageManager.shared.currentLanguage
+        self.customInstructions = UserDefaults.standard.string(forKey: "waan_agy_custom_instructions") ?? Self.defaultInstructions(for: lang)
         self.selectedModel = UserDefaults.standard.string(forKey: "waan_agy_selected_model") ?? "gemini-3.8-flash-high"
     }
 
+    public func handleLanguageChange(_ newLang: AppLanguage) {
+        if [Self.defaultInstructions(for: .th), Self.defaultInstructions(for: .en)].contains(customInstructions) {
+            customInstructions = Self.defaultInstructions(for: newLang)
+        }
+    }
+
     public func resetInstructions() {
-        self.customInstructions = Self.defaultInstructions
+        self.customInstructions = Self.defaultInstructions(for: LanguageManager.shared.currentLanguage)
     }
 
     public func newChat() {
@@ -98,7 +119,11 @@ public final class AgyChatManager: ObservableObject {
         let modelToUse = self.selectedModel
         let appSupportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Waan")
 
-        let promptToSend = (currentConvId?.isEmpty ?? true) ? "[System Instructions:\n\(instructions)]\n\n\(trimmed)" : trimmed
+        let currentLang = LanguageManager.shared.currentLanguage
+        let langRule = (currentLang == .th) ? "กรุณาตอบเป็นภาษาไทยเสมอ (Always reply in Thai)" : "Always reply in English."
+
+        let header = (currentConvId?.isEmpty ?? true) ? "[System Instructions:\n\(instructions)\nResponse Language: \(langRule)]" : "[Instruction: \(langRule)]"
+        let promptToSend = "\(header)\n\n\(trimmed)"
 
         Task.detached(priority: .userInitiated) { [weak self] in
             let proc = Process()
