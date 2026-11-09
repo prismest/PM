@@ -7,7 +7,6 @@ public struct ChatAssistantView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .foregroundColor(.accentColor)
@@ -16,9 +15,10 @@ public struct ChatAssistantView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Antigravity AI")
                         .font(.system(size: 12, weight: .bold))
-                    Text(chatManager.conversationId != nil ? "Session Active" : "Local CLI Engine")
+                    Text(chatManager.currentModelName)
                         .font(.system(size: 9))
                         .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
 
                 Spacer()
@@ -38,7 +38,7 @@ public struct ChatAssistantView: View {
                         HStack {
                             Image(systemName: "person.crop.circle.badge.checkmark")
                                 .foregroundColor(.accentColor)
-                            Text("AI Role & Instructions")
+                            Text("AI Settings & Persona")
                                 .font(.system(size: 12, weight: .bold))
                             Spacer()
                             Button("Reset") {
@@ -49,7 +49,28 @@ public struct ChatAssistantView: View {
                             .foregroundColor(.secondary)
                         }
 
-                        Text("กำหนดบทบาท บุคลิก และคำสั่งตั้งต้นของ AI (มีผลเมื่อเริ่มแชทใหม่)")
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Model & Reasoning")
+                                .font(.system(size: 11, weight: .semibold))
+
+                            Picker("", selection: $chatManager.selectedModel) {
+                                ForEach(AgyChatManager.availableModels) { model in
+                                    Text(model.name).tag(model.id)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+
+                            if let selected = AgyChatManager.availableModels.first(where: { $0.id == chatManager.selectedModel }) {
+                                Text(selected.detail)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        Divider()
+
+                        Text("บทบาท บุคลิก และคำสั่งตั้งต้น (มีผลเมื่อเริ่มแชทใหม่)")
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
 
@@ -99,7 +120,6 @@ public struct ChatAssistantView: View {
 
             Divider()
 
-            // Chat Messages
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
@@ -174,7 +194,6 @@ public struct ChatAssistantView: View {
 
             Divider()
 
-            // Input Bar
             HStack(spacing: 8) {
                 TextField("พิมพ์สั่งงานหรือคุยกับ AI...", text: $inputText)
                     .textFieldStyle(.plain)

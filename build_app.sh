@@ -48,5 +48,8 @@ cat << 'EOF' > "${APP_DIR}/Contents/Info.plist"
 </plist>
 EOF
 
+echo "Signing macOS .app Bundle..."
+codesign --force --deep --sign - "${APP_DIR}"
+
 echo "Waan.app is ready."
 echo "You can launch the app with: open Waan.app"

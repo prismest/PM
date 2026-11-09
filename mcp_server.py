@@ -466,7 +466,6 @@ def main():
         run_http_server(args.port)
         return
 
-    # Default to stdio JSON-RPC loop
     while True:
         line = sys.stdin.readline()
         if not line:
