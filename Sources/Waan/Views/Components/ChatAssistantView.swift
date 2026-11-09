@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct ChatAssistantView: View {
     @ObservedObject var chatManager: AgyChatManager = .shared
+    @ObservedObject var langManager: LanguageManager = .shared
     @State private var inputText: String = ""
     @State private var showingSettings: Bool = false
 
@@ -38,10 +39,10 @@ public struct ChatAssistantView: View {
                         HStack {
                             Image(systemName: "person.crop.circle.badge.checkmark")
                                 .foregroundColor(.accentColor)
-                            Text("AI Settings & Persona")
+                            Text(langManager.text(.settingsTitle))
                                 .font(.system(size: 12, weight: .bold))
                             Spacer()
-                            Button("Reset") {
+                            Button(langManager.text(.reset)) {
                                 chatManager.resetInstructions()
                             }
                             .font(.system(size: 11))
@@ -50,7 +51,20 @@ public struct ChatAssistantView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Model & Reasoning")
+                            Text(langManager.text(.language))
+                                .font(.system(size: 11, weight: .semibold))
+
+                            Picker("", selection: $langManager.currentLanguage) {
+                                ForEach(AppLanguage.allCases) { lang in
+                                    Text(lang.title).tag(lang)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(langManager.text(.modelAndReasoning))
                                 .font(.system(size: 11, weight: .semibold))
 
                             Picker("", selection: $chatManager.selectedModel) {
@@ -70,7 +84,7 @@ public struct ChatAssistantView: View {
 
                         Divider()
 
-                        Text("บทบาท บุคลิก และคำสั่งตั้งต้น (มีผลเมื่อเริ่มแชทใหม่)")
+                        Text(langManager.text(.roleHint))
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
 
@@ -87,7 +101,7 @@ public struct ChatAssistantView: View {
 
                         HStack {
                             Spacer()
-                            Button("Done") {
+                            Button(langManager.text(.done)) {
                                 showingSettings = false
                             }
                             .font(.system(size: 11, weight: .semibold))
@@ -103,7 +117,7 @@ public struct ChatAssistantView: View {
                     HStack(spacing: 3) {
                         Image(systemName: "plus.bubble")
                             .font(.system(size: 10))
-                        Text("New Chat")
+                        Text(langManager.text(.newChat))
                             .font(.system(size: 10, weight: .medium))
                     }
                     .padding(.horizontal, 6)
@@ -131,19 +145,19 @@ public struct ChatAssistantView: View {
                                     .font(.system(size: 30))
                                     .foregroundColor(.accentColor.opacity(0.6))
 
-                                Text("คุยกับ Antigravity CLI")
+                                Text(langManager.text(.emptyChatTitle))
                                     .font(.system(size: 13, weight: .semibold))
 
-                                Text("สั่งเพิ่ม, เลื่อน, จัดการ หรือวางแผนงานใน Waan ได้ต่อเนื่องใน Session เดียวกัน")
+                                Text(langManager.text(.emptyChatDesc))
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 20)
 
                                 VStack(spacing: 6) {
-                                    promptChip("สรุปงานที่ต้องทำวันนี้ให้หน่อย")
-                                    promptChip("เลื่อนงานที่ค้างไปเป็นพรุ่งนี้")
-                                    promptChip("เพิ่มงาน: ประชุมสรุปโปรเจกต์ (High priority)")
+                                    promptChip(langManager.text(.promptChipToday))
+                                    promptChip(langManager.text(.promptChipOverdue))
+                                    promptChip(langManager.text(.promptChipAdd))
                                 }
                                 .padding(.top, 8)
 
@@ -160,7 +174,7 @@ public struct ChatAssistantView: View {
                                 HStack(spacing: 8) {
                                     ProgressView()
                                         .controlSize(.small)
-                                    Text("Antigravity กำลังประมวลผล...")
+                                    Text(langManager.text(.processing))
                                         .font(.system(size: 11))
                                         .foregroundColor(.secondary)
                                     Spacer()
@@ -195,7 +209,7 @@ public struct ChatAssistantView: View {
             Divider()
 
             HStack(spacing: 8) {
-                TextField("พิมพ์สั่งงานหรือคุยกับ AI...", text: $inputText)
+                TextField(langManager.text(.inputPlaceholder), text: $inputText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .onSubmit {

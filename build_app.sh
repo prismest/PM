@@ -51,5 +51,15 @@ EOF
 echo "Signing macOS .app Bundle..."
 codesign --force --deep --sign - "${APP_DIR}"
 
+INSTALL_DIR="/Applications"
+if [ ! -w "$INSTALL_DIR" ]; then
+    INSTALL_DIR="${HOME}/Applications"
+    mkdir -p "${INSTALL_DIR}"
+fi
+
+echo "Installing Waan.app to ${INSTALL_DIR}..."
+rm -rf "${INSTALL_DIR}/${APP_NAME}.app"
+cp -R "${APP_DIR}" "${INSTALL_DIR}/"
+
 echo "Waan.app is ready."
-echo "You can launch the app with: open Waan.app"
+echo "You can launch the app with: open '${INSTALL_DIR}/${APP_NAME}.app'"
