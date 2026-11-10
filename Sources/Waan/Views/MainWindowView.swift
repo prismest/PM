@@ -3,7 +3,9 @@ import SwiftUI
 public struct MainWindowView: View {
     @ObservedObject var store: TaskStore
     @ObservedObject var mcpServer: MCPServerManager = .shared
+    @ObservedObject var langManager: LanguageManager = .shared
     @State private var showingAIGuide: Bool = false
+    @State private var showingChat: Bool = true
 
     public var body: some View {
         NavigationSplitView {
@@ -30,7 +32,7 @@ public struct MainWindowView: View {
                     set: { store.selectedFilter = $0 }
                 )) { filter in
                     HStack {
-                        Label(filter.rawValue, systemImage: filter.iconName)
+                        Label(filter.localizedTitle(for: langManager.currentLanguage), systemImage: filter.iconName)
                             .font(.system(size: 13))
                         Spacer()
                         countBadge(for: filter)
@@ -91,88 +93,131 @@ public struct MainWindowView: View {
             }
             .frame(minWidth: 200, idealWidth: 220)
         } detail: {
-            VStack(spacing: 0) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(store.selectedFilter.rawValue)
-                            .font(.system(size: 20, weight: .bold))
-                        Text("\(store.filteredTasks.count) tasks")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
+            HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(store.selectedFilter.localizedTitle(for: langManager.currentLanguage))
+                                .font(.system(size: 20, weight: .bold))
+                            Text(langManager.text(.taskCount(store.filteredTasks.count)))
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
 
-                    Spacer()
+                        Spacer()
 
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12))
-                        TextField("Search tasks...", text: $store.searchText)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 12))
-                        if !store.searchText.isEmpty {
-                            Button(action: { store.searchText = "" }) {
-                                Image(systemName: "xmark.circle.fill")
+                        HStack(spacing: 8) {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
                                     .foregroundColor(.secondary)
                                     .font(.system(size: 12))
+                                TextField(langManager.text(.searchPlaceholder), text: $store.searchText)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 12))
+                                if !store.searchText.isEmpty {
+                                    Button(action: { store.searchText = "" }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.secondary)
+                                            .font(.system(size: 12))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color(nsColor: .controlBackgroundColor))
+                            .cornerRadius(7)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7)
+                                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+                            )
+                            .frame(width: 170)
+
+                            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { langManager.toggle() } }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "globe")
+                                        .font(.system(size: 11))
+                                    Text(langManager.currentLanguage.title)
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color.secondary.opacity(0.08))
+                                .cornerRadius(6)
                             }
                             .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(7)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 7)
-                            .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-                    )
-                    .frame(width: 200)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 18)
-                .padding(.bottom, 14)
+                            .help("Switch Language (ไทย / English)")
 
-                Divider()
-
-                VStack {
-                    QuickInputBar(store: store)
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-
-                if store.filteredTasks.isEmpty {
-                    VStack(spacing: 12) {
-                        Spacer()
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 40))
-                            .foregroundColor(.accentColor.opacity(0.5))
-                        Text("No tasks in this category")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("Add a task above or let your AI harness schedule tasks.")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(store.filteredTasks) { task in
-                                TaskRowView(store: store, task: task)
+                            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showingChat.toggle() } }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 11))
+                                    Text(langManager.text(.aiChat))
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(showingChat ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
+                                .foregroundColor(showingChat ? .accentColor : .primary)
+                                .cornerRadius(6)
                             }
+                            .buttonStyle(.plain)
+                            .help("Toggle Antigravity AI Assistant Panel")
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 10)
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 18)
+                    .padding(.bottom, 14)
+
+                    Divider()
+
+                    VStack {
+                        QuickInputBar(store: store)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+
+                    if store.filteredTasks.isEmpty {
+                        VStack(spacing: 12) {
+                            Spacer()
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 40))
+                                .foregroundColor(.accentColor.opacity(0.5))
+                            Text("No tasks in this category")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.primary)
+                            Text("Add a task above or chat with Antigravity AI to schedule tasks.")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 8) {
+                                ForEach(store.filteredTasks) { task in
+                                    TaskRowView(store: store, task: task)
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                        }
+                    }
+                }
+                .frame(minWidth: 420)
+
+                if showingChat {
+                    Divider()
+                    ChatAssistantView()
+                        .frame(minWidth: 320, idealWidth: 350, maxWidth: 440)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .sheet(isPresented: $showingAIGuide) {
                 AIGuideSheetView(mcpServer: mcpServer)
             }
         }
-        .frame(minWidth: 780, minHeight: 520)
+        .frame(minWidth: 860, minHeight: 540)
     }
 
     @ViewBuilder

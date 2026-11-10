@@ -160,6 +160,10 @@ class TestMcpServerProtocol(WaanBaseTestCase):
         conn.commit()
         self.assertIn("marked as completed", done_res)
 
+        update_res = mcp_server.tool_update_task(cursor, {"target": "MCP Task", "due_date": "tomorrow", "priority": "urgent"})
+        conn.commit()
+        self.assertIn("updated successfully", update_res)
+
         del_res = mcp_server.tool_delete_task(cursor, {"target": "MCP Task"})
         conn.commit()
         self.assertIn("deleted", del_res)
@@ -190,7 +194,6 @@ class TestMcpServerProtocol(WaanBaseTestCase):
         self.assertTrue(resp.get("result", {}).get("isError", False))
         self.assertIn("turned OFF", resp["result"]["content"][0]["text"])
 
-        # Re-enable
         mcp_server.set_mcp_status(enabled=True)
         resp_enabled = mcp_server.process_jsonrpc_request(req)
         self.assertNotIn("isError", resp_enabled.get("result", {}))

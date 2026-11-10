@@ -10,6 +10,15 @@ public enum Priority: String, Codable, CaseIterable, Identifiable {
 
     public var displayName: String { rawValue.capitalized }
 
+    public func localizedName(for lang: AppLanguage) -> String {
+        switch self {
+        case .low: return lang == .th ? "ต่ำ" : "Low"
+        case .normal: return lang == .th ? "ปกติ" : "Normal"
+        case .high: return lang == .th ? "สูง" : "High"
+        case .urgent: return lang == .th ? "ด่วนมาก" : "Urgent"
+        }
+    }
+
 }
 
 public enum TaskStatus: String, Codable, CaseIterable {
