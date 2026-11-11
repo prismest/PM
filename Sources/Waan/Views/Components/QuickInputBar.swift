@@ -14,9 +14,10 @@ public struct QuickInputBar: View {
                     .foregroundColor(.accentColor)
                     .font(.system(size: 16))
 
-                TextField(langManager.currentLanguage == .th ? "เพิ่มงานใหม่... (กด Return เพื่อเพิ่ม)" : "Add a task... (Press Return to add)", text: $text)
+                TextField(langManager.currentLanguage == .th ? "เพิ่มงาน..." : "Add task...", text: $text)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
+                    .help(langManager.currentLanguage == .th ? "กด Return เพื่อเพิ่ม" : "Press Return to add")
                     .onSubmit {
                         submit()
                     }
@@ -34,7 +35,7 @@ public struct QuickInputBar: View {
                     }
                 } label: {
                     HStack(spacing: 3) {
-                        Text(priority.localizedName(for: langManager.currentLanguage).prefix(4))
+                        Text(priority.localizedName(for: langManager.currentLanguage))
                             .font(.system(size: 11))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8))
