@@ -38,10 +38,11 @@ public final class TaskStore: ObservableObject {
     @Published public var selectedFilter: FilterType = .today
     @Published public var searchText: String = ""
 
-    private let db = DatabaseManager.shared
+    private let db: DatabaseManager
     private var fileWatcher: FileWatcher?
 
-    public init() {
+    public init(db: DatabaseManager = .shared) {
+        self.db = db
         reloadTasks()
 
         fileWatcher = FileWatcher(filePath: db.dbPath) { [weak self] in
@@ -116,6 +117,11 @@ public final class TaskStore: ObservableObject {
 
     public func toggleSubtask(taskId: String, subtaskId: String) {
         db.toggleSubtask(taskId: taskId, subtaskId: subtaskId)
+        reloadTasks()
+    }
+
+    public func updateTags(id: String, tags: [String]) {
+        db.updateTaskTags(id: id, tags: tags)
         reloadTasks()
     }
 

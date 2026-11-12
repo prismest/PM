@@ -6,20 +6,57 @@ public struct QuickInputBar: View {
     @State private var text: String = ""
     @State private var priority: Priority = .normal
     @State private var dueDateOption: String = "today"
+    @State private var selectedCategory: String = ""
 
     public var body: some View {
         VStack(spacing: 6) {
-            HStack(spacing: 8) {
+            HStack(spacing: 5) {
                 Image(systemName: "plus.circle.fill")
                     .foregroundColor(.accentColor)
-                    .font(.system(size: 16))
+                    .font(.system(size: 15))
 
-                TextField(langManager.currentLanguage == .th ? "เพิ่มงานใหม่... (กด Return เพื่อเพิ่ม)" : "Add a task... (Press Return to add)", text: $text)
+                TextField(langManager.currentLanguage == .th ? "เพิ่มงาน..." : "Add task...", text: $text)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
+                    .frame(minWidth: 50)
+                    .help(langManager.currentLanguage == .th ? "กด Return เพื่อเพิ่ม (ใส่ #ประเภท ได้)" : "Press Return to add (supports #category)")
                     .onSubmit {
                         submit()
                     }
+
+                Menu {
+                    Button(langManager.currentLanguage == .th ? "ทั่วไป (ไม่ระบุ)" : "None") {
+                        selectedCategory = ""
+                    }
+                    Divider()
+                    ForEach(FocusAnalytics.presetCategories, id: \.self) { cat in
+                        Button(action: { selectedCategory = cat }) {
+                            HStack {
+                                Text("#\(cat)")
+                                if selectedCategory == cat {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "tag")
+                            .font(.system(size: 10))
+                        if !selectedCategory.isEmpty {
+                            Text(selectedCategory)
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                    }
+                    .foregroundColor(selectedCategory.isEmpty ? .secondary : .blue)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .background(selectedCategory.isEmpty ? Color.secondary.opacity(0.1) : Color.blue.opacity(0.12))
+                    .cornerRadius(5)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help(langManager.currentLanguage == .th ? "เลือกประเภทงาน" : "Select category")
 
                 Menu {
                     ForEach(Priority.allCases) { p in
@@ -34,7 +71,7 @@ public struct QuickInputBar: View {
                     }
                 } label: {
                     HStack(spacing: 3) {
-                        Text(priority.localizedName(for: langManager.currentLanguage).prefix(4))
+                        Text(priority.localizedName(for: langManager.currentLanguage))
                             .font(.system(size: 11))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8))
@@ -68,17 +105,18 @@ public struct QuickInputBar: View {
 
                 Button(action: submit) {
                     Text(langManager.text(.add))
-                        .font(.system(size: 12, weight: .semibold))
-                        .padding(.horizontal, 10)
+                        .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(text.trimmingCharacters(in: .whitespaces).isEmpty ? Color.secondary.opacity(0.2) : Color.accentColor)
                         .foregroundColor(text.trimmingCharacters(in: .whitespaces).isEmpty ? .secondary : .white)
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
+                .fixedSize()
                 .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
@@ -105,19 +143,37 @@ public struct QuickInputBar: View {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        var extractedTags: [String] = selectedCategory.isEmpty ? [] : [selectedCategory]
+        var remainingWords: [String] = []
+        for word in trimmed.split(separator: " ", omittingEmptySubsequences: true) {
+            let s = String(word)
+            if s.hasPrefix("#"), s.count > 1 {
+                let candidate = String(s.dropFirst())
+                if candidate.contains(where: \.isLetter) {
+                    if !extractedTags.contains(candidate) {
+                        extractedTags.append(candidate)
+                    }
+                    continue
+                }
+            }
+            remainingWords.append(s)
+        }
+
+        let finalTitle = remainingWords.isEmpty ? trimmed : remainingWords.joined(separator: " ")
         let targetDate = dueDateOption == "today" ? Date() : (dueDateOption == "tomorrow" ? Calendar.current.date(byAdding: .day, value: 1, to: Date()) : nil)
         let calculatedDueDate = targetDate.map { ISO8601DateFormatter().string(from: $0) }
 
         store.addTask(
-            title: trimmed,
+            title: finalTitle,
             dueDate: calculatedDueDate,
             priority: priority,
             subtasks: [],
-            tags: []
+            tags: extractedTags
         )
 
         text = ""
         priority = .normal
+        selectedCategory = ""
     }
 }
 

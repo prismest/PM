@@ -28,6 +28,18 @@ public enum L10nKey {
     case roleHint
     case openMainWindow
     case quit
+    case pomodoroTitle
+    case focusLabel
+    case breakLabel
+    case overtimeLabel
+    case startFocus
+    case takeBreak
+    case resume
+    case pause
+    case finishSave
+    case freeFocus
+    case focusInsights
+    case backToWork
 }
 
 @MainActor
@@ -73,6 +85,18 @@ public final class LanguageManager: ObservableObject {
         case .roleHint: return isTh ? "บทบาท บุคลิก และคำสั่งตั้งต้น (มีผลเมื่อเริ่มแชทใหม่)" : "Persona and instructions (Applies to new chats)"
         case .openMainWindow: return isTh ? "เปิดหน้าต่างหลัก" : "Open Main Window"
         case .quit: return isTh ? "ออกจากโปรแกรม" : "Quit Waan"
+        case .pomodoroTitle: return isTh ? "จับเวลาโฟกัส" : "Focus Timer"
+        case .focusLabel: return isTh ? "โฟกัส" : "Focus"
+        case .breakLabel: return isTh ? "พัก" : "Break"
+        case .overtimeLabel: return isTh ? "เลยเป้า" : "Overtime"
+        case .startFocus: return isTh ? "เริ่มโฟกัส" : "Start Focus"
+        case .takeBreak: return isTh ? "พัก" : "Break"
+        case .resume: return isTh ? "ทำต่อ" : "Resume"
+        case .pause: return isTh ? "หยุดชั่วคราว" : "Pause"
+        case .finishSave: return isTh ? "จบ" : "Stop"
+        case .freeFocus: return isTh ? "โฟกัสอิสระ" : "Free Focus"
+        case .focusInsights: return isTh ? "สถิติเวลา" : "Time Insights"
+        case .backToWork: return isTh ? "เริ่มงานต่อ" : "Back to Work"
         }
     }
 }

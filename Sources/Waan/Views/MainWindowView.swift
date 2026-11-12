@@ -1,15 +1,22 @@
 import SwiftUI
 
+private enum SidebarDestination: Hashable {
+    case tasks(FilterType)
+    case focusInsights
+}
+
 public struct MainWindowView: View {
     @ObservedObject var store: TaskStore
     @ObservedObject var mcpServer: MCPServerManager = .shared
     @ObservedObject var langManager: LanguageManager = .shared
     @State private var showingAIGuide: Bool = false
     @State private var showingChat: Bool = true
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var destination: SidebarDestination = .tasks(.today)
 
     public var body: some View {
-        NavigationSplitView {
-            VStack(alignment: .leading, spacing: 12) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles.rectangle.stack.fill")
                         .font(.system(size: 20))
@@ -27,22 +34,34 @@ public struct MainWindowView: View {
 
                 Divider()
 
-                List(FilterType.allCases, selection: Binding(
-                    get: { store.selectedFilter },
-                    set: { store.selectedFilter = $0 }
-                )) { filter in
-                    HStack {
-                        Label(filter.localizedTitle(for: langManager.currentLanguage), systemImage: filter.iconName)
-                            .font(.system(size: 13))
-                        Spacer()
-                        countBadge(for: filter)
+                List(selection: $destination) {
+                    ForEach(FilterType.allCases) { filter in
+                        HStack {
+                            Label(filter.localizedTitle(for: langManager.currentLanguage), systemImage: filter.iconName)
+                                .font(.system(size: 13))
+                            Spacer()
+                            countBadge(for: filter)
+                        }
+                        .tag(SidebarDestination.tasks(filter))
+                        .padding(.vertical, 2)
                     }
-                    .tag(filter)
-                    .padding(.vertical, 2)
+
+                    Divider()
+
+                    Label(langManager.text(.focusInsights), systemImage: "chart.bar.xaxis")
+                        .font(.system(size: 13))
+                        .tag(SidebarDestination.focusInsights)
+                        .padding(.vertical, 2)
                 }
                 .listStyle(.sidebar)
+                .onChange(of: destination) {
+                    if case .tasks(let filter) = destination {
+                        store.selectedFilter = filter
+                    }
+                }
 
-                Spacer()
+                PomodoroControlCard(compact: true)
+                    .padding(.horizontal, 12)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .center) {
@@ -68,7 +87,7 @@ public struct MainWindowView: View {
                         .help(mcpServer.isRunning ? "Stop MCP Server" : "Start MCP Server")
                     }
 
-                    Text(mcpServer.isRunning ? "Port \(String(mcpServer.port)) • Ready for Claude & Cursor" : "Turn ON to enable AI harness bridge")
+                    Text(mcpServer.isRunning ? "Port \(String(mcpServer.port)) • Ready for AI" : "Turn ON to enable AI bridge")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                         .lineLimit(2)
@@ -91,57 +110,84 @@ public struct MainWindowView: View {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
             }
-            .frame(minWidth: 200, idealWidth: 220)
+            .frame(minWidth: 180, idealWidth: 200, maxWidth: 240)
         } detail: {
             HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    HStack(alignment: .center) {
+                Group {
+                    switch destination {
+                    case .focusInsights:
+                        FocusAnalyticsView(store: store)
+                    case .tasks:
+                        taskListColumn
+                    }
+                }
+                .frame(minWidth: 300, maxWidth: .infinity)
+
+                if showingChat {
+                    Divider()
+                    ChatAssistantView()
+                        .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .sheet(isPresented: $showingAIGuide) {
+                AIGuideSheetView(mcpServer: mcpServer)
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: 780, minHeight: 540)
+    }
+
+    private var taskListColumn: some View {
+        VStack(spacing: 0) {
+                    HStack(alignment: .center, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(store.selectedFilter.localizedTitle(for: langManager.currentLanguage))
-                                .font(.system(size: 20, weight: .bold))
+                                .font(.system(size: 18, weight: .bold))
+                                .lineLimit(1)
                             Text(langManager.text(.taskCount(store.filteredTasks.count)))
-                                .font(.system(size: 12))
+                                .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                         }
 
-                        Spacer()
+                        Spacer(minLength: 8)
 
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             HStack {
                                 Image(systemName: "magnifyingglass")
                                     .foregroundColor(.secondary)
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 11))
                                 TextField(langManager.text(.searchPlaceholder), text: $store.searchText)
                                     .textFieldStyle(.plain)
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 11))
                                 if !store.searchText.isEmpty {
                                     Button(action: { store.searchText = "" }) {
                                         Image(systemName: "xmark.circle.fill")
                                             .foregroundColor(.secondary)
-                                            .font(.system(size: 12))
+                                            .font(.system(size: 11))
                                     }
                                     .buttonStyle(.plain)
                                 }
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
                             .background(Color(nsColor: .controlBackgroundColor))
-                            .cornerRadius(7)
+                            .cornerRadius(6)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 7)
+                                RoundedRectangle(cornerRadius: 6)
                                     .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
                             )
-                            .frame(width: 170)
+                            .frame(minWidth: 90, idealWidth: 130, maxWidth: 160)
 
                             Button(action: { withAnimation(.easeInOut(duration: 0.2)) { langManager.toggle() } }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 3) {
                                     Image(systemName: "globe")
-                                        .font(.system(size: 11))
+                                        .font(.system(size: 10))
                                     Text(langManager.currentLanguage.title)
-                                        .font(.system(size: 11, weight: .medium))
+                                        .font(.system(size: 10, weight: .medium))
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 4)
                                 .background(Color.secondary.opacity(0.08))
                                 .cornerRadius(6)
                             }
@@ -149,14 +195,14 @@ public struct MainWindowView: View {
                             .help("Switch Language (ไทย / English)")
 
                             Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showingChat.toggle() } }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 3) {
                                     Image(systemName: "sparkles")
-                                        .font(.system(size: 11))
+                                        .font(.system(size: 10))
                                     Text(langManager.text(.aiChat))
-                                        .font(.system(size: 11, weight: .medium))
+                                        .font(.system(size: 10, weight: .medium))
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 4)
                                 .background(showingChat ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
                                 .foregroundColor(showingChat ? .accentColor : .primary)
                                 .cornerRadius(6)
@@ -165,17 +211,17 @@ public struct MainWindowView: View {
                             .help("Toggle Antigravity AI Assistant Panel")
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 18)
-                    .padding(.bottom, 14)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 10)
 
                     Divider()
 
                     VStack {
                         QuickInputBar(store: store)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
 
                     if store.filteredTasks.isEmpty {
                         VStack(spacing: 12) {
@@ -199,25 +245,11 @@ public struct MainWindowView: View {
                                     TaskRowView(store: store, task: task)
                                 }
                             }
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                         }
                     }
                 }
-                .frame(minWidth: 420)
-
-                if showingChat {
-                    Divider()
-                    ChatAssistantView()
-                        .frame(minWidth: 320, idealWidth: 350, maxWidth: 440)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-            }
-            .sheet(isPresented: $showingAIGuide) {
-                AIGuideSheetView(mcpServer: mcpServer)
-            }
-        }
-        .frame(minWidth: 860, minHeight: 540)
     }
 
     @ViewBuilder

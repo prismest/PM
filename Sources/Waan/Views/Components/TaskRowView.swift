@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct TaskRowView: View {
     @ObservedObject var store: TaskStore
+    @ObservedObject var langManager: LanguageManager = .shared
     let task: TaskItem
     @State private var isExpanded: Bool = false
 
@@ -25,7 +26,7 @@ public struct TaskRowView: View {
                         .strikethrough(task.isCompleted, color: .secondary)
                         .foregroundColor(task.isCompleted ? .secondary : .primary)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         priorityBadge(task.priority)
 
                         if let due = task.dueDate, !due.isEmpty {
@@ -59,19 +60,17 @@ public struct TaskRowView: View {
                             .buttonStyle(.plain)
                         }
 
-                        ForEach(task.tags, id: \.self) { tag in
-                            Text("#\(tag)")
-                                .font(.system(size: 10))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(Color.blue.opacity(0.1))
-                                .foregroundColor(.blue)
-                                .cornerRadius(4)
-                        }
+                        categoryMenu
+
+                        TaskLoggedDurationBadge(taskId: task.id)
                     }
                 }
 
                 Spacer()
+
+                if !task.isCompleted {
+                    TaskFocusButton(task: task)
+                }
 
                 Button(action: {
                     withAnimation {
@@ -122,6 +121,51 @@ public struct TaskRowView: View {
     }
 
     @ViewBuilder
+    private var categoryMenu: some View {
+        let currentTag = FocusAnalytics.primaryCategory(tags: task.tags)
+        let isTh = langManager.currentLanguage == .th
+        Menu {
+            ForEach(FocusAnalytics.presetCategories, id: \.self) { cat in
+                Button(action: { store.updateTags(id: task.id, tags: [cat]) }) {
+                    HStack {
+                        Text("#\(cat)")
+                        if currentTag == cat {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+            if !currentTag.isEmpty {
+                Divider()
+                Button(isTh ? "ล้างประเภท" : "Clear category") {
+                    store.updateTags(id: task.id, tags: [])
+                }
+            }
+        } label: {
+            if currentTag.isEmpty {
+                Image(systemName: "tag")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary.opacity(0.6))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(Color.secondary.opacity(0.08))
+                    .cornerRadius(4)
+            } else {
+                Text("#\(currentTag)")
+                    .font(.system(size: 10))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(4)
+            }
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help(isTh ? "ตั้งประเภทงาน" : "Assign task category")
+    }
+
+    @ViewBuilder
     private func priorityBadge(_ priority: Priority) -> some View {
         let color: Color = {
             switch priority {
@@ -132,7 +176,7 @@ public struct TaskRowView: View {
             }
         }()
 
-        Text(priority.displayName)
+        Text(priority.localizedName(for: langManager.currentLanguage))
             .font(.system(size: 10, weight: .medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -143,7 +187,64 @@ public struct TaskRowView: View {
 
     private func formatDueDate(_ raw: String) -> String {
         let today = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
-        return raw.starts(with: today) ? "Today" : String(raw.prefix(10))
+        if raw.starts(with: today) {
+            return langManager.currentLanguage == .th ? "วันนี้" : "Today"
+        }
+        return String(raw.prefix(10))
+    }
+}
+
+private struct TaskLoggedDurationBadge: View {
+    @ObservedObject var pomodoro: PomodoroManager = .shared
+    @ObservedObject var langManager: LanguageManager = .shared
+    let taskId: String
+
+    var body: some View {
+        let total = pomodoro.sessions
+            .filter { $0.kind == .focus && $0.taskId == taskId }
+            .reduce(0) { $0 + $1.actualSeconds }
+        if total > 0 {
+            HStack(spacing: 2) {
+                Image(systemName: "timer")
+                    .font(.system(size: 9))
+                Text(FocusDurationFormat.human(total, lang: langManager.currentLanguage))
+                    .font(.system(size: 10, weight: .medium))
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Color.purple.opacity(0.12))
+            .foregroundColor(.purple)
+            .cornerRadius(4)
+        }
+    }
+}
+
+private struct TaskFocusButton: View {
+    @ObservedObject var pomodoro: PomodoroManager = .shared
+    @ObservedObject var langManager: LanguageManager = .shared
+    let task: TaskItem
+
+    var body: some View {
+        let active = pomodoro.isFocusing(on: task.id)
+        let color: Color = active ? (pomodoro.isOvertime ? .orange : .accentColor) : .secondary.opacity(0.75)
+
+        Button(action: { pomodoro.startFocus(task: task) }) {
+            HStack(spacing: 3) {
+                Image(systemName: active && pomodoro.isRunning ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 14))
+                if active, let clock = pomodoro.menuBarText {
+                    Text(clock)
+                        .font(.system(size: 10, weight: .semibold))
+                        .monospacedDigit()
+                }
+            }
+            .foregroundColor(color)
+        }
+        .buttonStyle(.plain)
+        .help(langManager.currentLanguage == .th
+              ? (active ? "หยุดชั่วคราว / ทำต่อ" : "เริ่มจับเวลาโฟกัสงานนี้")
+              : (active ? "Pause / Resume" : "Focus on this task"))
     }
 }
 
