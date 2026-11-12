@@ -11,6 +11,9 @@ public struct TaskRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
                 Button(action: {
+                    if !task.isCompleted {
+                        PomodoroManager.shared.detachTask(id: task.id)
+                    }
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
                         store.toggleTask(id: task.id)
                     }
@@ -55,12 +58,21 @@ public struct TaskRowView: View {
 
                 TaskLoggedDurationLabel(taskId: task.id)
 
-                if !task.isCompleted {
-                    TaskFocusButton(task: task, isHovering: isHovering)
+                if isHovering && !task.isCompleted {
+                    Button(action: { PomodoroManager.shared.startFocus(task: task) }) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.7))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 3)
+                    }
+                    .buttonStyle(.plain)
+                    .help(langManager.currentLanguage == .th ? "เริ่มจับเวลาโฟกัสงานนี้" : "Focus on this task")
                 }
 
                 if isHovering {
                     Button(action: {
+                        PomodoroManager.shared.detachTask(id: task.id)
                         withAnimation { store.deleteTask(id: task.id) }
                     }) {
                         Image(systemName: "trash")
@@ -175,40 +187,6 @@ private struct TaskLoggedDurationLabel: View {
                 .font(.system(size: 11))
                 .monospacedDigit()
                 .foregroundColor(.secondary)
-        }
-    }
-}
-
-private struct TaskFocusButton: View {
-    @ObservedObject var pomodoro: PomodoroManager = .shared
-    @ObservedObject var langManager: LanguageManager = .shared
-    let task: TaskItem
-    let isHovering: Bool
-
-    var body: some View {
-        let active = pomodoro.isFocusing(on: task.id)
-        if active || isHovering {
-            let color: Color = active ? (pomodoro.isOvertime ? .orange : .accentColor) : .secondary.opacity(0.7)
-            Button(action: { pomodoro.startFocus(task: task) }) {
-                HStack(spacing: 3) {
-                    Image(systemName: active && pomodoro.isRunning ? "pause.fill" : "play.fill")
-                        .font(.system(size: 10))
-                    if active, let clock = pomodoro.menuBarText {
-                        Text(clock)
-                            .font(.system(size: 11, weight: .semibold))
-                            .monospacedDigit()
-                    }
-                }
-                .foregroundColor(color)
-                .padding(.horizontal, active ? 6 : 4)
-                .padding(.vertical, 3)
-                .background(active ? color.opacity(0.12) : Color.clear)
-                .cornerRadius(5)
-            }
-            .buttonStyle(.plain)
-            .help(langManager.currentLanguage == .th
-                  ? (active ? "หยุดชั่วคราว / ทำต่อ" : "เริ่มจับเวลาโฟกัสงานนี้")
-                  : (active ? "Pause / Resume" : "Focus on this task"))
         }
     }
 }

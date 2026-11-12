@@ -36,6 +36,7 @@ public enum L10nKey {
     case pause
     case finishSave
     case focusInsights
+    case focusNow
     case backToWork
 }
 
@@ -90,6 +91,7 @@ public final class LanguageManager: ObservableObject {
         case .pause: return isTh ? "หยุดชั่วคราว" : "Pause"
         case .finishSave: return isTh ? "จบ" : "Stop"
         case .focusInsights: return isTh ? "สถิติเวลา" : "Time Insights"
+        case .focusNow: return isTh ? "ทำตอนนี้" : "Right Now"
         case .backToWork: return isTh ? "เริ่มงานต่อ" : "Back to Work"
         }
     }

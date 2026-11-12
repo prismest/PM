@@ -1,23 +1,37 @@
 import SwiftUI
 
 private enum SidebarDestination: Hashable {
+    case now
     case tasks(FilterType)
     case focusInsights
 }
 
 public struct MainWindowView: View {
     @ObservedObject var store: TaskStore
+    @ObservedObject var pomodoro: PomodoroManager = .shared
     @ObservedObject var mcpServer: MCPServerManager = .shared
     @ObservedObject var langManager: LanguageManager = .shared
     @State private var showingAIGuide: Bool = false
     @State private var showingChat: Bool = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var destination: SidebarDestination = .tasks(.today)
+    @State private var destination: SidebarDestination = .now
 
     public var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        Group {
+            if pomodoro.state != .idle {
+                FocusModeView(store: store, pomodoro: pomodoro)
+            } else {
+                NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack(alignment: .leading, spacing: 0) {
                 List(selection: $destination) {
+                    Label(langManager.text(.focusNow), systemImage: "scope")
+                        .font(.system(size: 13))
+                        .tag(SidebarDestination.now)
+                        .padding(.vertical, 2)
+
+                    Divider()
+                        .padding(.vertical, 4)
+
                     ForEach(FilterType.allCases) { filter in
                         HStack {
                             Label(filter.localizedTitle(for: langManager.currentLanguage), systemImage: filter.iconName)
@@ -89,6 +103,8 @@ public struct MainWindowView: View {
             HStack(spacing: 0) {
                 Group {
                     switch destination {
+                    case .now:
+                        FocusNowView(store: store)
                     case .focusInsights:
                         FocusAnalyticsView(store: store)
                     case .tasks:
@@ -126,6 +142,9 @@ public struct MainWindowView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: pomodoro.state == .idle)
         .frame(minWidth: 720, minHeight: 480)
     }
 
