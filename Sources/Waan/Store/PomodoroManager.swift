@@ -118,9 +118,26 @@ public final class PomodoroManager: ObservableObject {
         return session.taskId == taskId
     }
 
+    public func canFocus(on taskId: String) -> Bool {
+        switch state {
+        case .idle:
+            return true
+        case .running(let session, _), .paused(let session):
+            if session.kind == .focus {
+                return session.taskId == taskId
+            }
+            return session.taskId == nil || session.taskId == taskId
+        }
+    }
+
     public func startFocus(task: TaskItem? = nil, at currentTime: Date = Date()) {
-        if let task, isFocusing(on: task.id) {
-            togglePause(at: currentTime)
+        if let task {
+            guard canFocus(on: task.id) else { return }
+            if isFocusing(on: task.id) {
+                togglePause(at: currentTime)
+                return
+            }
+        } else if activeKind == .focus {
             return
         }
 
@@ -133,6 +150,15 @@ public final class PomodoroManager: ObservableObject {
 
     public func clearSelectedTask() {
         selectedTask = nil
+    }
+
+    public func detachTask(id: String) {
+        if isFocusing(on: id) {
+            stopAndSave()
+        }
+        if state == .idle && selectedTask?.id == id {
+            clearSelectedTask()
+        }
     }
 
     public func togglePause(at currentTime: Date = Date()) {
