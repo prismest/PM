@@ -8,23 +8,15 @@ public struct MenuBarView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .foregroundColor(.accentColor)
-                    Text("Waan")
-                        .font(.system(size: 14, weight: .bold))
-                }
+            HStack(spacing: 8) {
+                Text("Waan")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("· \(store.todayTasksCount)")
+                    .font(.system(size: 12))
+                    .monospacedDigit()
+                    .foregroundColor(.secondary)
 
                 Spacer()
-
-                Text("\(store.todayTasksCount) \(langManager.currentLanguage == .th ? "วันนี้" : "today")")
-                    .font(.system(size: 11, weight: .medium))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.15))
-                    .foregroundColor(.accentColor)
-                    .cornerRadius(10)
 
                 Button(action: onOpenMainWindow) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
@@ -39,57 +31,54 @@ public struct MenuBarView: View {
             .padding(.bottom, 8)
 
             Divider()
+                .opacity(0.4)
 
             PomodoroControlCard(compact: false)
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
 
-            VStack {
-                QuickInputBar(store: store)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            Divider()
+                .opacity(0.4)
+
+            QuickInputBar(store: store)
+                .padding(.horizontal, 14)
+                .padding(.top, 4)
 
             if store.filteredTasks.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     Spacer()
-                    Image(systemName: "checkmark.seal")
-                        .font(.system(size: 32))
-                        .foregroundColor(.secondary.opacity(0.4))
-                    Text(langManager.currentLanguage == .th ? "ทำงานของวันนี้ครบหมดแล้ว!" : "All tasks completed for today!")
+                    Text(langManager.currentLanguage == .th ? "ทำงานของวันนี้ครบแล้ว" : "All clear for today")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     Spacer()
                 }
-                .frame(height: 180)
+                .frame(height: 150)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 6) {
+                    LazyVStack(spacing: 0) {
                         ForEach(store.filteredTasks) { task in
                             TaskRowView(store: store, task: task)
+                            Divider()
+                                .opacity(0.25)
+                                .padding(.leading, 30)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
                 }
-                .frame(maxHeight: 280)
+                .frame(maxHeight: 260)
             }
 
             Divider()
+                .opacity(0.4)
 
             HStack(spacing: 8) {
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
-                        .frame(width: 6, height: 6)
-                        .shadow(color: mcpServer.isRunning ? Color.green.opacity(0.4) : Color.clear, radius: 2)
-                    Text(mcpServer.isRunning ? (langManager.currentLanguage == .th ? "เซิร์ฟเวอร์ MCP กำลังทำงาน" : "MCP Server Active") : (langManager.currentLanguage == .th ? "เซิร์ฟเวอร์ MCP ปิดอยู่" : "MCP Server Off"))
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(mcpServer.isRunning ? .primary : .secondary)
-                }
-                .help(mcpServer.isRunning ? "MCP Server running on port \(String(mcpServer.port))" : "MCP Server stopped")
-
-                Spacer()
+                Circle()
+                    .fill(mcpServer.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                    .frame(width: 6, height: 6)
+                Text("MCP")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundColor(.secondary)
 
                 Toggle("", isOn: Binding(
                     get: { mcpServer.isRunning },
@@ -98,10 +87,8 @@ public struct MenuBarView: View {
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .labelsHidden()
-                .help(mcpServer.isRunning ? "Turn off MCP Server" : "Turn on MCP Server")
 
-                Divider()
-                    .frame(height: 12)
+                Spacer()
 
                 Button(langManager.text(.quit)) {
                     mcpServer.stop()
@@ -113,9 +100,7 @@ public struct MenuBarView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
         }
-        .frame(width: 360)
+        .frame(width: 320)
     }
 }
-

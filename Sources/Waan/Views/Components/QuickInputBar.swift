@@ -10,123 +10,94 @@ public struct QuickInputBar: View {
 
     public var body: some View {
         VStack(spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: "plus.circle.fill")
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
                     .foregroundColor(.accentColor)
-                    .font(.system(size: 15))
+                    .font(.system(size: 13, weight: .semibold))
 
                 TextField(langManager.currentLanguage == .th ? "เพิ่มงาน..." : "Add task...", text: $text)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .frame(minWidth: 50)
-                    .help(langManager.currentLanguage == .th ? "กด Return เพื่อเพิ่ม (ใส่ #ประเภท ได้)" : "Press Return to add (supports #category)")
+                    .font(.system(size: 13))
+                    .frame(minWidth: 60)
                     .onSubmit {
                         submit()
                     }
 
                 Menu {
-                    Button(langManager.currentLanguage == .th ? "ทั่วไป (ไม่ระบุ)" : "None") {
-                        selectedCategory = ""
+                    Picker("", selection: $selectedCategory) {
+                        Text(langManager.currentLanguage == .th ? "ทั่วไป (ไม่ระบุ)" : "None").tag("")
+                        Divider()
+                        ForEach(FocusAnalytics.presetCategories, id: \.self) { Text("#\($0)").tag($0) }
                     }
-                    Divider()
-                    ForEach(FocusAnalytics.presetCategories, id: \.self) { cat in
-                        Button(action: { selectedCategory = cat }) {
-                            HStack {
-                                Text("#\(cat)")
-                                if selectedCategory == cat {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
+                    .pickerStyle(.inline)
                 } label: {
                     HStack(spacing: 2) {
                         Image(systemName: "tag")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                         if !selectedCategory.isEmpty {
                             Text(selectedCategory)
                                 .font(.system(size: 10, weight: .medium))
                         }
                     }
-                    .foregroundColor(selectedCategory.isEmpty ? .secondary : .blue)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 3)
-                    .background(selectedCategory.isEmpty ? Color.secondary.opacity(0.1) : Color.blue.opacity(0.12))
-                    .cornerRadius(5)
+                    .foregroundColor(selectedCategory.isEmpty ? .secondary.opacity(0.65) : .accentColor)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
-                .help(langManager.currentLanguage == .th ? "เลือกประเภทงาน" : "Select category")
+                .help(langManager.currentLanguage == .th ? "ประเภทงาน" : "Category")
 
                 Menu {
-                    ForEach(Priority.allCases) { p in
-                        Button(action: { priority = p }) {
-                            HStack {
-                                Text(p.localizedName(for: langManager.currentLanguage))
-                                if priority == p {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
+                    Picker("", selection: $priority) {
+                        ForEach(Priority.allCases) { Text($0.localizedName(for: langManager.currentLanguage)).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "flag")
+                            .font(.system(size: 11))
+                        if priority != .normal {
+                            Text(priority.localizedName(for: langManager.currentLanguage))
+                                .font(.system(size: 10, weight: .medium))
                         }
                     }
-                } label: {
-                    HStack(spacing: 3) {
-                        Text(priority.localizedName(for: langManager.currentLanguage))
-                            .font(.system(size: 11))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 8))
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(5)
+                    .foregroundColor(priority == .normal ? .secondary.opacity(0.65) : .orange)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
+                .help(langManager.currentLanguage == .th ? "ความสำคัญ" : "Priority")
 
                 Menu {
                     Button(langManager.currentLanguage == .th ? "วันนี้" : "Today") { dueDateOption = "today" }
                     Button(langManager.currentLanguage == .th ? "พรุ่งนี้" : "Tomorrow") { dueDateOption = "tomorrow" }
                     Button(langManager.currentLanguage == .th ? "ไม่มีกำหนด" : "No Date") { dueDateOption = "none" }
                 } label: {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 2) {
                         Image(systemName: "calendar")
-                            .font(.system(size: 10))
-                        Text(dueDateLabel)
                             .font(.system(size: 11))
+                        if dueDateOption != "today" {
+                            Text(dueDateLabel)
+                                .font(.system(size: 10, weight: .medium))
+                        }
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(5)
+                    .foregroundColor(dueDateOption == "today" ? .secondary.opacity(0.65) : .accentColor)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
+                .help(dueDateLabel)
 
-                Button(action: submit) {
-                    Text(langManager.text(.add))
-                        .font(.system(size: 11, weight: .semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(text.trimmingCharacters(in: .whitespaces).isEmpty ? Color.secondary.opacity(0.2) : Color.accentColor)
-                        .foregroundColor(text.trimmingCharacters(in: .whitespaces).isEmpty ? .secondary : .white)
-                        .cornerRadius(6)
+                if !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Button(action: submit) {
+                        Text(langManager.text(.add))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .fixedSize()
                 }
-                .buttonStyle(.plain)
-                .fixedSize()
-                .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-                    .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
+            .padding(.vertical, 6)
+
+            Divider()
+                .opacity(0.5)
         }
     }
 
@@ -176,4 +147,3 @@ public struct QuickInputBar: View {
         selectedCategory = ""
     }
 }
-

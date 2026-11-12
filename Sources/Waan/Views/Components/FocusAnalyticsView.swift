@@ -27,107 +27,78 @@ public struct FocusAnalyticsView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(langManager.text(.focusInsights))
-                        .font(.system(size: 18, weight: .bold))
-                        .lineLimit(1)
-                    Text(isTh
-                         ? "เทียบเวลาที่ตั้งกับเวลาทำจริงตามประเภทและงาน"
-                         : "Planned vs actual time by category and task")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
+            HStack(alignment: .firstTextBaseline) {
+                Text(langManager.text(.focusInsights))
+                    .font(.system(size: 18, weight: .bold))
 
                 Spacer()
 
-                HStack(spacing: 6) {
-                    statPill(
-                        label: isTh ? "วันนี้" : "Today",
-                        value: FocusDurationFormat.human(pomodoro.todayFocusSeconds, lang: lang)
-                    )
-                    statPill(
-                        label: isTh ? "รวมทั้งหมด" : "All Time",
-                        value: "\(FocusDurationFormat.human(totalFocusSeconds, lang: lang)) (\(totalSessionCount))"
-                    )
-                }
+                Text(isTh
+                     ? "วันนี้ \(FocusDurationFormat.human(pomodoro.todayFocusSeconds, lang: lang)) · รวม \(FocusDurationFormat.human(totalFocusSeconds, lang: lang)) (\(totalSessionCount))"
+                     : "Today \(FocusDurationFormat.human(pomodoro.todayFocusSeconds, lang: lang)) · Total \(FocusDurationFormat.human(totalFocusSeconds, lang: lang)) (\(totalSessionCount))")
+                    .font(.system(size: 11))
+                    .monospacedDigit()
+                    .foregroundColor(.secondary)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
 
             Divider()
+                .opacity(0.4)
 
             if summaries.isEmpty {
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     Spacer()
                     Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 38))
-                        .foregroundColor(.accentColor.opacity(0.5))
-                    Text(isTh ? "ยังไม่มีประวัติการจับเวลา" : "No focus sessions recorded yet")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary.opacity(0.4))
+                    Text(isTh ? "ยังไม่มีประวัติการจับเวลา" : "No focus sessions yet")
+                        .font(.system(size: 13, weight: .medium))
                     Text(isTh
-                         ? "กดปุ่มเล่นที่งานใดก็ได้แล้วกดพักเมื่อเสร็จ ระบบจะวิเคราะห์ความแม่นยำให้อัตโนมัติ"
-                         : "Start a focus timer on any task and press Break when done to track time calibration.")
+                         ? "เริ่มจับเวลาที่งานใดก็ได้แล้วกดพักเมื่อเสร็จ"
+                         : "Start a focus timer on any task and take a break when done.")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(alignment: .leading, spacing: 20) {
                         ForEach(summaries) { category in
-                            categoryCard(category)
+                            categorySection(category)
                         }
                     }
-                    .padding(16)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 18)
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func statPill(label: String, value: String) -> some View {
-        VStack(alignment: .trailing, spacing: 1) {
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.system(size: 11, weight: .semibold))
-                .monospacedDigit()
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.secondary.opacity(0.08))
-        .cornerRadius(6)
-    }
-
-    @ViewBuilder
-    private func categoryCard(_ cat: CategoryTimeSummary) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 8) {
+    private func categorySection(_ cat: CategoryTimeSummary) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(FocusAnalytics.displayCategory(cat.id, lang: lang))
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 13.5, weight: .semibold))
 
-                calibrationBadge(cat.calibration)
+                Text(calibrationLabel(cat.calibration))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(calibrationColor(cat.calibration))
 
                 Spacer()
 
                 Text(FocusDurationFormat.human(cat.totalActualSeconds, lang: lang))
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundColor(.accentColor)
             }
 
             HStack(spacing: 8) {
                 Text(isTh
-                     ? "ตั้งเฉลี่ย \(cat.averagePlannedMinutes) น. / ทำจริง \(cat.averageActualMinutes) น. (\(FocusDurationFormat.signedDelta(cat.averageDeltaSeconds, lang: lang))) • \(cat.sessionCount) รอบ"
-                     : "Avg planned \(cat.averagePlannedMinutes)m / actual \(cat.averageActualMinutes)m (\(FocusDurationFormat.signedDelta(cat.averageDeltaSeconds, lang: lang))) • \(cat.sessionCount)x")
+                     ? "ตั้งเฉลี่ย \(cat.averagePlannedMinutes) น. / จริง \(cat.averageActualMinutes) น. (\(FocusDurationFormat.signedDelta(cat.averageDeltaSeconds, lang: lang))) · \(cat.sessionCount) รอบ"
+                     : "Planned \(cat.averagePlannedMinutes)m avg / actual \(cat.averageActualMinutes)m (\(FocusDurationFormat.signedDelta(cat.averageDeltaSeconds, lang: lang))) · \(cat.sessionCount)x")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
 
@@ -135,55 +106,49 @@ public struct FocusAnalyticsView: View {
 
                 if cat.calibration != .wellCalibrated && pomodoro.focusMinutes != cat.suggestedMinutes {
                     Button(action: { pomodoro.focusMinutes = cat.suggestedMinutes }) {
-                        Text(isTh ? "ตั้งเป็น \(cat.suggestedMinutes) น." : "Set \(cat.suggestedMinutes)m")
-                            .font(.system(size: 10, weight: .semibold))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Color.accentColor.opacity(0.14))
+                        Text(isTh ? "ปรับเป็น \(cat.suggestedMinutes) น." : "Set \(cat.suggestedMinutes)m")
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.accentColor)
-                            .cornerRadius(5)
                     }
                     .buttonStyle(.plain)
-                    .help(isTh ? "ปรับเวลาโฟกัสตั้งต้นให้เหมาะกับงานประเภทนี้" : "Apply suggested focus duration for this category")
                 }
             }
 
-            Divider()
-
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
                 ForEach(cat.tasks) { task in
                     HStack(spacing: 8) {
                         Text(task.taskTitle)
                             .font(.system(size: 12))
+                            .foregroundColor(.primary.opacity(0.85))
                             .lineLimit(1)
                             .truncationMode(.tail)
 
                         Spacer()
 
                         Text(FocusDurationFormat.signedDelta(task.totalActualSeconds - task.totalPlannedSeconds, lang: lang))
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 10.5))
                             .monospacedDigit()
-                            .foregroundColor(calibrationColor(task.calibration))
+                            .foregroundColor(calibrationColor(task.calibration).opacity(0.9))
 
                         Text(FocusDurationFormat.human(task.totalActualSeconds, lang: lang))
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 11.5, weight: .medium))
                             .monospacedDigit()
-                            .foregroundColor(.primary)
+                            .frame(minWidth: 46, alignment: .trailing)
 
-                        Text("(\(task.sessionCount)x)")
-                            .font(.system(size: 10))
+                        Text("\(task.sessionCount)x")
+                            .font(.system(size: 10.5))
                             .foregroundColor(.secondary)
+                            .frame(minWidth: 22, alignment: .trailing)
                     }
+                    .padding(.leading, 8)
                 }
             }
+            .padding(.top, 2)
+
+            Divider()
+                .opacity(0.35)
+                .padding(.top, 6)
         }
-        .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.6))
-        .cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.secondary.opacity(0.14), lineWidth: 1)
-        )
     }
 
     private func calibrationColor(_ cal: EstimationCalibration) -> Color {
@@ -194,23 +159,11 @@ public struct FocusAnalyticsView: View {
         }
     }
 
-    @ViewBuilder
-    private func calibrationBadge(_ cal: EstimationCalibration) -> some View {
-        let color = calibrationColor(cal)
-        let title: String = {
-            switch cal {
-            case .underestimated: return isTh ? "ตั้งเวลาน้อยเกินไป" : "Set too short"
-            case .overestimated: return isTh ? "ตั้งเวลาเยอะเกินไป" : "Set too long"
-            case .wellCalibrated: return isTh ? "ตั้งเวลาพอดี" : "Well calibrated"
-            }
-        }()
-
-        Text(title)
-            .font(.system(size: 10, weight: .semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.15))
-            .foregroundColor(color)
-            .cornerRadius(4)
+    private func calibrationLabel(_ cal: EstimationCalibration) -> String {
+        switch cal {
+        case .underestimated: return isTh ? "ตั้งเวลาน้อยเกินไป" : "Set too short"
+        case .overestimated: return isTh ? "ตั้งเวลาเยอะเกินไป" : "Set too long"
+        case .wellCalibrated: return isTh ? "ตั้งเวลาพอดี" : "On target"
+        }
     }
 }
