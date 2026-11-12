@@ -1,5 +1,10 @@
 import SwiftUI
 
+private enum SidebarDestination: Hashable {
+    case tasks(FilterType)
+    case focusInsights
+}
+
 public struct MainWindowView: View {
     @ObservedObject var store: TaskStore
     @ObservedObject var mcpServer: MCPServerManager = .shared
@@ -7,10 +12,11 @@ public struct MainWindowView: View {
     @State private var showingAIGuide: Bool = false
     @State private var showingChat: Bool = true
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var destination: SidebarDestination = .tasks(.today)
 
     public var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles.rectangle.stack.fill")
                         .font(.system(size: 20))
@@ -28,22 +34,34 @@ public struct MainWindowView: View {
 
                 Divider()
 
-                List(FilterType.allCases, selection: Binding(
-                    get: { store.selectedFilter },
-                    set: { store.selectedFilter = $0 }
-                )) { filter in
-                    HStack {
-                        Label(filter.localizedTitle(for: langManager.currentLanguage), systemImage: filter.iconName)
-                            .font(.system(size: 13))
-                        Spacer()
-                        countBadge(for: filter)
+                List(selection: $destination) {
+                    ForEach(FilterType.allCases) { filter in
+                        HStack {
+                            Label(filter.localizedTitle(for: langManager.currentLanguage), systemImage: filter.iconName)
+                                .font(.system(size: 13))
+                            Spacer()
+                            countBadge(for: filter)
+                        }
+                        .tag(SidebarDestination.tasks(filter))
+                        .padding(.vertical, 2)
                     }
-                    .tag(filter)
-                    .padding(.vertical, 2)
+
+                    Divider()
+
+                    Label(langManager.text(.focusInsights), systemImage: "chart.bar.xaxis")
+                        .font(.system(size: 13))
+                        .tag(SidebarDestination.focusInsights)
+                        .padding(.vertical, 2)
                 }
                 .listStyle(.sidebar)
+                .onChange(of: destination) {
+                    if case .tasks(let filter) = destination {
+                        store.selectedFilter = filter
+                    }
+                }
 
-                Spacer()
+                PomodoroControlCard(compact: true)
+                    .padding(.horizontal, 12)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .center) {
@@ -95,7 +113,33 @@ public struct MainWindowView: View {
             .frame(minWidth: 180, idealWidth: 200, maxWidth: 240)
         } detail: {
             HStack(spacing: 0) {
-                VStack(spacing: 0) {
+                Group {
+                    switch destination {
+                    case .focusInsights:
+                        FocusAnalyticsView(store: store)
+                    case .tasks:
+                        taskListColumn
+                    }
+                }
+                .frame(minWidth: 300, maxWidth: .infinity)
+
+                if showingChat {
+                    Divider()
+                    ChatAssistantView()
+                        .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .sheet(isPresented: $showingAIGuide) {
+                AIGuideSheetView(mcpServer: mcpServer)
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: 780, minHeight: 540)
+    }
+
+    private var taskListColumn: some View {
+        VStack(spacing: 0) {
                     HStack(alignment: .center, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(store.selectedFilter.localizedTitle(for: langManager.currentLanguage))
@@ -206,21 +250,6 @@ public struct MainWindowView: View {
                         }
                     }
                 }
-                .frame(minWidth: 300, maxWidth: .infinity)
-
-                if showingChat {
-                    Divider()
-                    ChatAssistantView()
-                        .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-            }
-            .sheet(isPresented: $showingAIGuide) {
-                AIGuideSheetView(mcpServer: mcpServer)
-            }
-        }
-        .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 780, minHeight: 500)
     }
 
     @ViewBuilder

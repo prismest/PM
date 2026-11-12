@@ -40,6 +40,10 @@ public struct MenuBarView: View {
 
             Divider()
 
+            PomodoroControlCard(compact: false)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+
             VStack {
                 QuickInputBar(store: store)
             }
