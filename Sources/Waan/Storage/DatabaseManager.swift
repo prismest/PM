@@ -9,13 +9,12 @@ public final class DatabaseManager: @unchecked Sendable {
 
     public let dbPath: String
 
-    private init() {
+    public convenience init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = appSupport.appendingPathComponent("Waan", isDirectory: true)
 
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let fileUrl = dir.appendingPathComponent("tasks.db")
-        self.dbPath = fileUrl.path
 
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         let dotPath = homeDir.appendingPathComponent(".waan")
@@ -23,6 +22,11 @@ public final class DatabaseManager: @unchecked Sendable {
             try? FileManager.default.createSymbolicLink(at: dotPath, withDestinationURL: dir)
         }
 
+        self.init(dbPath: fileUrl.path)
+    }
+
+    public init(dbPath: String) {
+        self.dbPath = dbPath
         openDatabase()
         createTable()
     }
@@ -52,6 +56,18 @@ public final class DatabaseManager: @unchecked Sendable {
             tags_json TEXT DEFAULT '[]',
             created_at TEXT NOT NULL,
             completed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS focus_sessions (
+            id TEXT PRIMARY KEY,
+            task_id TEXT,
+            task_title TEXT NOT NULL,
+            category TEXT DEFAULT '',
+            priority TEXT DEFAULT 'normal',
+            kind TEXT DEFAULT 'focus',
+            planned_seconds INTEGER NOT NULL,
+            actual_seconds INTEGER NOT NULL,
+            started_at TEXT NOT NULL,
+            ended_at TEXT NOT NULL
         );
         """
         sqlite3_exec(db, sql, nil, nil, nil)
@@ -189,6 +205,88 @@ public final class DatabaseManager: @unchecked Sendable {
                 sqlite3_step(stmt)
             }
             sqlite3_finalize(stmt)
+        }
+    }
+
+    private let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+    public func updateTaskTags(id: String, tags: [String]) {
+        queue.sync {
+            let tagsData = (try? JSONEncoder().encode(tags)) ?? Data("[]".utf8)
+            let tagsStr = String(data: tagsData, encoding: .utf8) ?? "[]"
+            let sql = "UPDATE tasks SET tags_json = ? WHERE id = ?;"
+            var stmt: OpaquePointer?
+            if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+                sqlite3_bind_text(stmt, 1, tagsStr, -1, sqliteTransient)
+                sqlite3_bind_text(stmt, 2, id, -1, sqliteTransient)
+                sqlite3_step(stmt)
+            }
+            sqlite3_finalize(stmt)
+        }
+    }
+
+    public func insertFocusSession(_ session: FocusSessionRecord) {
+        queue.sync {
+            let sql = """
+            INSERT OR REPLACE INTO focus_sessions (id, task_id, task_title, category, priority, kind, planned_seconds, actual_seconds, started_at, ended_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """
+            var stmt: OpaquePointer?
+            if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+                sqlite3_bind_text(stmt, 1, session.id, -1, sqliteTransient)
+                if let taskId = session.taskId {
+                    sqlite3_bind_text(stmt, 2, taskId, -1, sqliteTransient)
+                } else {
+                    sqlite3_bind_null(stmt, 2)
+                }
+                sqlite3_bind_text(stmt, 3, session.taskTitle, -1, sqliteTransient)
+                sqlite3_bind_text(stmt, 4, session.category, -1, sqliteTransient)
+                sqlite3_bind_text(stmt, 5, session.priority.rawValue, -1, sqliteTransient)
+                sqlite3_bind_text(stmt, 6, session.kind.rawValue, -1, sqliteTransient)
+                sqlite3_bind_int(stmt, 7, Int32(session.plannedSeconds))
+                sqlite3_bind_int(stmt, 8, Int32(session.actualSeconds))
+                sqlite3_bind_text(stmt, 9, session.startedAt, -1, sqliteTransient)
+                sqlite3_bind_text(stmt, 10, session.endedAt, -1, sqliteTransient)
+                sqlite3_step(stmt)
+            }
+            sqlite3_finalize(stmt)
+        }
+    }
+
+    public func fetchFocusSessions() -> [FocusSessionRecord] {
+        return queue.sync {
+            var records: [FocusSessionRecord] = []
+            let sql = "SELECT id, task_id, task_title, category, priority, kind, planned_seconds, actual_seconds, started_at, ended_at FROM focus_sessions ORDER BY ended_at DESC;"
+            var stmt: OpaquePointer?
+            if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    let id = String(cString: sqlite3_column_text(stmt, 0))
+                    let taskId = sqlite3_column_text(stmt, 1).map { String(cString: $0) }
+                    let taskTitle = String(cString: sqlite3_column_text(stmt, 2))
+                    let category = sqlite3_column_text(stmt, 3).map { String(cString: $0) } ?? ""
+                    let priorityRaw = sqlite3_column_text(stmt, 4).map { String(cString: $0) } ?? "normal"
+                    let kindRaw = sqlite3_column_text(stmt, 5).map { String(cString: $0) } ?? "focus"
+                    let planned = Int(sqlite3_column_int(stmt, 6))
+                    let actual = Int(sqlite3_column_int(stmt, 7))
+                    let startedAt = String(cString: sqlite3_column_text(stmt, 8))
+                    let endedAt = String(cString: sqlite3_column_text(stmt, 9))
+
+                    records.append(FocusSessionRecord(
+                        id: id,
+                        taskId: taskId,
+                        taskTitle: taskTitle,
+                        category: category,
+                        priority: Priority(rawValue: priorityRaw) ?? .normal,
+                        kind: SessionKind(rawValue: kindRaw) ?? .focus,
+                        plannedSeconds: planned,
+                        actualSeconds: actual,
+                        startedAt: startedAt,
+                        endedAt: endedAt
+                    ))
+                }
+            }
+            sqlite3_finalize(stmt)
+            return records
         }
     }
 
