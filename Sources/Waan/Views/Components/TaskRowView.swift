@@ -32,7 +32,12 @@ public struct TaskRowView: View {
 
                     if hasMetadata {
                         HStack(spacing: 8) {
-                            if let due = task.dueDate, !due.isEmpty {
+                            if task.isCompleted,
+                               let timeText = CompletedTasksGrouper.formatCompletedTime(task.completedAt, lang: langManager.currentLanguage) {
+                                Text(timeText)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            } else if let due = task.dueDate, !due.isEmpty {
                                 Text(formatDueDate(due))
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
@@ -122,7 +127,8 @@ public struct TaskRowView: View {
     private var hasMetadata: Bool {
         let hasDue = !(task.dueDate ?? "").isEmpty
         let hasTag = !FocusAnalytics.primaryCategory(tags: task.tags).isEmpty
-        return hasDue || hasTag || !task.subtasks.isEmpty || isHovering
+        let hasCompletion = task.isCompleted && task.completedAt != nil
+        return hasDue || hasTag || !task.subtasks.isEmpty || hasCompletion || isHovering
     }
 
     @ViewBuilder

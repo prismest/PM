@@ -64,6 +64,10 @@ public final class TaskStore: ObservableObject {
         NextTaskRecommender.recommend(from: tasks, now: now)
     }
 
+    public var groupedCompletedTasks: [CompletedTaskGroup] {
+        CompletedTasksGrouper.group(tasks: filteredTasks)
+    }
+
     public var filteredTasks: [TaskItem] {
         var result = tasks
 
@@ -87,7 +91,9 @@ public final class TaskStore: ObservableObject {
         case .highPriority:
             return result.filter { !$0.isCompleted && ($0.priority == .high || $0.priority == .urgent) }
         case .completed:
-            return result.filter(\.isCompleted)
+            return result
+                .filter(\.isCompleted)
+                .sorted { ($0.completedAt ?? $0.createdAt) > ($1.completedAt ?? $1.createdAt) }
         }
     }
 
