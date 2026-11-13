@@ -5,95 +5,94 @@ public struct TaskRowView: View {
     @ObservedObject var langManager: LanguageManager = .shared
     let task: TaskItem
     @State private var isExpanded: Bool = false
+    @State private var isHovering: Bool = false
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
                 Button(action: {
+                    if !task.isCompleted {
+                        PomodoroManager.shared.detachTask(id: task.id)
+                    }
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
                         store.toggleTask(id: task.id)
                     }
                 }) {
                     Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(task.isCompleted ? .green : .secondary)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(task.isCompleted ? .green : priorityColor(task.priority))
                 }
                 .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(task.title)
-                        .font(.system(size: 14, weight: task.isCompleted ? .regular : .medium))
+                        .font(.system(size: 13.5, weight: task.isCompleted ? .regular : .medium))
                         .strikethrough(task.isCompleted, color: .secondary)
                         .foregroundColor(task.isCompleted ? .secondary : .primary)
 
-                    HStack(spacing: 6) {
-                        priorityBadge(task.priority)
-
-                        if let due = task.dueDate, !due.isEmpty {
-                            HStack(spacing: 3) {
-                                Image(systemName: "calendar")
-                                    .font(.system(size: 10))
+                    if hasMetadata {
+                        HStack(spacing: 8) {
+                            if let due = task.dueDate, !due.isEmpty {
                                 Text(formatDueDate(due))
                                     .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
                             }
-                            .foregroundColor(.secondary)
-                        }
 
-                        if !task.subtasks.isEmpty {
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    isExpanded.toggle()
-                                }
-                            }) {
-                                HStack(spacing: 3) {
-                                    Image(systemName: isExpanded ? "chevron.down" : "checklist")
-                                        .font(.system(size: 10))
+                            categoryMenu
+
+                            if !task.subtasks.isEmpty {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                                }) {
                                     Text("\(task.subtaskProgress.done)/\(task.subtaskProgress.total)")
-                                        .font(.system(size: 11, weight: .semibold))
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
                                 }
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.secondary.opacity(0.12))
-                                .cornerRadius(5)
-                                .foregroundColor(.primary)
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
-
-                        categoryMenu
-
-                        TaskLoggedDurationBadge(taskId: task.id)
                     }
                 }
 
                 Spacer()
 
-                if !task.isCompleted {
-                    TaskFocusButton(task: task)
+                TaskLoggedDurationLabel(taskId: task.id)
+
+                if isHovering && !task.isCompleted {
+                    Button(action: { PomodoroManager.shared.startFocus(task: task) }) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.7))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 3)
+                    }
+                    .buttonStyle(.plain)
+                    .help(langManager.currentLanguage == .th ? "เริ่มจับเวลาโฟกัสงานนี้" : "Focus on this task")
                 }
 
-                Button(action: {
-                    withAnimation {
-                        store.deleteTask(id: task.id)
+                if isHovering {
+                    Button(action: {
+                        PomodoroManager.shared.detachTask(id: task.id)
+                        withAnimation { store.deleteTask(id: task.id) }
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary.opacity(0.65))
                     }
-                }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary.opacity(0.6))
+                    .buttonStyle(.plain)
+                    .help(langManager.currentLanguage == .th ? "ลบงาน" : "Delete task")
                 }
-                .buttonStyle(.plain)
-                .help("Delete task")
             }
 
             if isExpanded && !task.subtasks.isEmpty {
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(task.subtasks) { subtask in
                         HStack(spacing: 8) {
                             Button(action: {
                                 store.toggleSubtask(taskId: task.id, subtaskId: subtask.id)
                             }) {
                                 Image(systemName: subtask.isDone ? "checkmark.square.fill" : "square")
-                                    .font(.system(size: 13))
+                                    .font(.system(size: 12))
                                     .foregroundColor(subtask.isDone ? .green : .secondary)
                             }
                             .buttonStyle(.plain)
@@ -105,84 +104,64 @@ public struct TaskRowView: View {
 
                             Spacer()
                         }
-                        .padding(.leading, 28)
+                        .padding(.leading, 26)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        )
+        .padding(.horizontal, 6)
+        .background(isHovering ? Color.secondary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .onHover { hovering in
+            isHovering = hovering
+        }
+    }
+
+    private var hasMetadata: Bool {
+        let hasDue = !(task.dueDate ?? "").isEmpty
+        let hasTag = !FocusAnalytics.primaryCategory(tags: task.tags).isEmpty
+        return hasDue || hasTag || !task.subtasks.isEmpty || isHovering
     }
 
     @ViewBuilder
     private var categoryMenu: some View {
         let currentTag = FocusAnalytics.primaryCategory(tags: task.tags)
         let isTh = langManager.currentLanguage == .th
-        Menu {
-            ForEach(FocusAnalytics.presetCategories, id: \.self) { cat in
-                Button(action: { store.updateTags(id: task.id, tags: [cat]) }) {
-                    HStack {
-                        Text("#\(cat)")
-                        if currentTag == cat {
-                            Image(systemName: "checkmark")
+        if !currentTag.isEmpty || isHovering {
+            Menu {
+                ForEach(FocusAnalytics.presetCategories, id: \.self) { cat in
+                    Button(action: { store.updateTags(id: task.id, tags: [cat]) }) {
+                        HStack {
+                            Text("#\(cat)")
+                            if currentTag == cat { Image(systemName: "checkmark") }
                         }
                     }
                 }
-            }
-            if !currentTag.isEmpty {
-                Divider()
-                Button(isTh ? "ล้างประเภท" : "Clear category") {
-                    store.updateTags(id: task.id, tags: [])
+                if !currentTag.isEmpty {
+                    Divider()
+                    Button(isTh ? "ล้างประเภท" : "Clear category") {
+                        store.updateTags(id: task.id, tags: [])
+                    }
                 }
+            } label: {
+                Text(currentTag.isEmpty ? (isTh ? "+ ประเภท" : "+ tag") : "#\(currentTag)")
+                    .font(.system(size: 11))
+                    .foregroundColor(currentTag.isEmpty ? .secondary.opacity(0.6) : .accentColor.opacity(0.85))
             }
-        } label: {
-            if currentTag.isEmpty {
-                Image(systemName: "tag")
-                    .font(.system(size: 9))
-                    .foregroundColor(.secondary.opacity(0.6))
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.08))
-                    .cornerRadius(4)
-            } else {
-                Text("#\(currentTag)")
-                    .font(.system(size: 10))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(4)
-            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .help(isTh ? "ตั้งประเภทงาน" : "Assign task category")
     }
 
-    @ViewBuilder
-    private func priorityBadge(_ priority: Priority) -> some View {
-        let color: Color = {
-            switch priority {
-            case .low: return .gray
-            case .normal: return .blue
-            case .high: return .orange
-            case .urgent: return .red
-            }
-        }()
-
-        Text(priority.localizedName(for: langManager.currentLanguage))
-            .font(.system(size: 10, weight: .medium))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.15))
-            .foregroundColor(color)
-            .cornerRadius(4)
+    private func priorityColor(_ priority: Priority) -> Color {
+        switch priority {
+        case .low: return .secondary.opacity(0.4)
+        case .normal: return .secondary.opacity(0.7)
+        case .high: return .orange.opacity(0.85)
+        case .urgent: return .red.opacity(0.9)
+        }
     }
 
     private func formatDueDate(_ raw: String) -> String {
@@ -194,7 +173,7 @@ public struct TaskRowView: View {
     }
 }
 
-private struct TaskLoggedDurationBadge: View {
+private struct TaskLoggedDurationLabel: View {
     @ObservedObject var pomodoro: PomodoroManager = .shared
     @ObservedObject var langManager: LanguageManager = .shared
     let taskId: String
@@ -204,47 +183,10 @@ private struct TaskLoggedDurationBadge: View {
             .filter { $0.kind == .focus && $0.taskId == taskId }
             .reduce(0) { $0 + $1.actualSeconds }
         if total > 0 {
-            HStack(spacing: 2) {
-                Image(systemName: "timer")
-                    .font(.system(size: 9))
-                Text(FocusDurationFormat.human(total, lang: langManager.currentLanguage))
-                    .font(.system(size: 10, weight: .medium))
-                    .monospacedDigit()
-            }
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color.purple.opacity(0.12))
-            .foregroundColor(.purple)
-            .cornerRadius(4)
+            Text(FocusDurationFormat.human(total, lang: langManager.currentLanguage))
+                .font(.system(size: 11))
+                .monospacedDigit()
+                .foregroundColor(.secondary)
         }
     }
 }
-
-private struct TaskFocusButton: View {
-    @ObservedObject var pomodoro: PomodoroManager = .shared
-    @ObservedObject var langManager: LanguageManager = .shared
-    let task: TaskItem
-
-    var body: some View {
-        let active = pomodoro.isFocusing(on: task.id)
-        let color: Color = active ? (pomodoro.isOvertime ? .orange : .accentColor) : .secondary.opacity(0.75)
-
-        Button(action: { pomodoro.startFocus(task: task) }) {
-            HStack(spacing: 3) {
-                Image(systemName: active && pomodoro.isRunning ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 14))
-                if active, let clock = pomodoro.menuBarText {
-                    Text(clock)
-                        .font(.system(size: 10, weight: .semibold))
-                        .monospacedDigit()
-                }
-            }
-            .foregroundColor(color)
-        }
-        .buttonStyle(.plain)
-        .help(langManager.currentLanguage == .th
-              ? (active ? "หยุดชั่วคราว / ทำต่อ" : "เริ่มจับเวลาโฟกัสงานนี้")
-              : (active ? "Pause / Resume" : "Focus on this task"))
-    }
-}
-

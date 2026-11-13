@@ -1,5 +1,79 @@
 import SwiftUI
 
+public struct TimerClockFace: View {
+    public let progress: Double
+    public let elapsedSeconds: Int
+    public let color: Color
+    public let size: CGFloat
+    public let isPaused: Bool
+
+    public init(
+        progress: Double,
+        elapsedSeconds: Int,
+        color: Color,
+        size: CGFloat = 38,
+        isPaused: Bool = false
+    ) {
+        self.progress = min(max(progress, 0), 1)
+        self.elapsedSeconds = max(0, elapsedSeconds)
+        self.color = color
+        self.size = size
+        self.isPaused = isPaused
+    }
+
+    public var body: some View {
+        let strokeWidth = max(2, size * 0.065)
+        let ringSize = size - strokeWidth
+        let gap = max(1.5, size * 0.045)
+        let minuteHandLen = size * 0.27
+        let secondHandLen = size * 0.34
+        let dotSize = max(3.5, size * 0.11)
+
+        ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.16), lineWidth: strokeWidth)
+                .frame(width: ringSize, height: ringSize)
+
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(color, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
+                .frame(width: ringSize, height: ringSize)
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 0.25), value: progress)
+
+            ForEach(0..<12, id: \.self) { index in
+                let major = index % 3 == 0
+                let tickH = major ? size * 0.09 : size * 0.055
+                let tickW = major ? max(1.2, size * 0.03) : max(0.8, size * 0.02)
+                let tickOffset = (ringSize * 0.5) - (strokeWidth * 0.5) - gap - (tickH * 0.5)
+                Rectangle()
+                    .fill(Color.secondary.opacity(major ? 0.55 : 0.25))
+                    .frame(width: tickW, height: tickH)
+                    .offset(y: -tickOffset)
+                    .rotationEffect(.degrees(Double(index) * 30))
+            }
+
+            Capsule()
+                .fill(Color.primary.opacity(0.85))
+                .frame(width: max(1.6, size * 0.048), height: minuteHandLen)
+                .offset(y: -minuteHandLen * 0.5)
+                .rotationEffect(.degrees(progress * 360.0))
+
+            Capsule()
+                .fill(color.opacity(isPaused ? 0.45 : 0.95))
+                .frame(width: max(1.0, size * 0.028), height: secondHandLen)
+                .offset(y: -secondHandLen * 0.5)
+                .rotationEffect(.degrees(Double(elapsedSeconds) * 6.0))
+                .animation(.linear(duration: 0.2), value: elapsedSeconds)
+
+            Circle()
+                .fill(color)
+                .frame(width: dotSize, height: dotSize)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 public struct MenuBarLabelView: View {
     @ObservedObject var pomodoro: PomodoroManager = .shared
 
@@ -29,137 +103,49 @@ public struct PomodoroControlCard: View {
 
     private var isTh: Bool { langManager.currentLanguage == .th }
 
-    private var statusColor: Color {
-        switch pomodoro.state.session?.kind {
-        case .focus:
-            return pomodoro.isOvertime ? .orange : .accentColor
-        case .breakTime:
-            return pomodoro.isOvertime ? .orange : .green
-        case nil:
-            return .accentColor
-        }
-    }
-
-    private var phaseTitle: String {
-        guard let kind = pomodoro.activeKind else {
-            return langManager.text(.pomodoroTitle)
-        }
-        switch kind {
-        case .focus:
-            return pomodoro.isOvertime ? langManager.text(.overtimeLabel) : langManager.text(.focusLabel)
-        case .breakTime:
-            return langManager.text(.breakLabel)
-        }
-    }
-
     public var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            headerRow
-            boundTaskRow
-
-            if pomodoro.state == .idle {
-                idleBody
-            } else {
-                activeBody
-            }
-        }
-        .padding(10)
-        .background(statusColor.opacity(pomodoro.state == .idle ? 0.06 : 0.10))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(pomodoro.isOvertime ? Color.orange.opacity(0.45) : Color.secondary.opacity(0.12), lineWidth: 1)
-        )
-    }
-
-    private var headerRow: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(pomodoro.state == .idle ? Color.secondary.opacity(0.4) : statusColor)
-                .frame(width: 7, height: 7)
-
-            Text(phaseTitle)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(pomodoro.isOvertime ? .orange : .primary)
-                .lineLimit(1)
-
-            Spacer()
-
-            if pomodoro.state == .idle {
-                Button(action: { showingDurations.toggle() }) {
-                    HStack(spacing: 3) {
-                        Text("\(pomodoro.focusMinutes)/\(pomodoro.breakMinutes)")
-                            .font(.system(size: 10, weight: .medium))
-                            .monospacedDigit()
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 9))
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.12))
-                    .cornerRadius(4)
-                }
-                .buttonStyle(.plain)
-                .help(isTh ? "ตั้งเวลาทำงาน / พัก (นาที)" : "Configure focus & break durations")
-                .popover(isPresented: $showingDurations, arrowEdge: .trailing) {
-                    durationConfigPopover
-                }
-            } else {
-                Text("\(isTh ? "รวม" : "Total") \(FocusDurationFormat.clock(pomodoro.elapsedSeconds))")
-                    .font(.system(size: 10, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var boundTaskRow: some View {
-        let boundTitle = pomodoro.state.session?.taskTitle ?? pomodoro.selectedTask?.title
-        if let title = boundTitle {
-            HStack(spacing: 4) {
-                Image(systemName: "scope")
-                    .font(.system(size: 9))
-                    .foregroundColor(statusColor)
-                Text(title)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Spacer(minLength: 2)
-                if pomodoro.state == .idle {
+        VStack(alignment: .leading, spacing: 4) {
+            idleRow
+            if let task = pomodoro.selectedTask {
+                HStack(spacing: 4) {
+                    Text(task.title)
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer()
                     Button(action: { pomodoro.clearSelectedTask() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8))
+                            .foregroundColor(.secondary.opacity(0.7))
                     }
                     .buttonStyle(.plain)
-                    .help(isTh ? "เปลี่ยนเป็นโฟกัสอิสระ" : "Switch to free focus")
                 }
-            }
-        } else if pomodoro.state != .idle {
-            HStack(spacing: 4) {
-                Image(systemName: "scope")
-                    .font(.system(size: 9))
-                    .foregroundColor(.secondary)
-                Text(langManager.text(.freeFocus))
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
             }
         }
     }
 
-    private var idleBody: some View {
-        HStack(alignment: .center, spacing: compact ? 8 : 10) {
-            Text(pomodoro.primaryClockDisplay)
-                .font(.system(size: compact ? 20 : 22, weight: .bold, design: .rounded))
-                .monospacedDigit()
-
-            if !compact {
-                Text("\(pomodoro.focusMinutes)m / \(pomodoro.breakMinutes)m")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
+    private var idleRow: some View {
+        HStack(spacing: 8) {
+            Button(action: { showingDurations.toggle() }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Text(pomodoro.primaryClockDisplay)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(.primary)
+                    Text("\(pomodoro.focusMinutes)/\(pomodoro.breakMinutes)")
+                        .font(.system(size: 10))
+                        .monospacedDigit()
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(isTh ? "ตั้งเวลาทำงาน / พัก" : "Set focus & break durations")
+            .popover(isPresented: $showingDurations, arrowEdge: .trailing) {
+                durationConfigPopover
             }
 
             Spacer()
@@ -167,78 +153,20 @@ public struct PomodoroControlCard: View {
             Button(action: { pomodoro.startFocus() }) {
                 HStack(spacing: 4) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: compact ? 9 : 10))
-                    Text(langManager.text(.startFocus))
-                        .font(.system(size: compact ? 10 : 11, weight: .semibold))
+                        .font(.system(size: 9))
+                    if !compact {
+                        Text(langManager.text(.startFocus))
+                            .font(.system(size: 11, weight: .medium))
+                    }
                 }
-                .padding(.horizontal, compact ? 8 : 10)
-                .padding(.vertical, 5)
-                .background(Color.accentColor)
-                .foregroundColor(.white)
+                .foregroundColor(.accentColor)
+                .padding(.horizontal, compact ? 7 : 8)
+                .padding(.vertical, 4)
+                .background(Color.accentColor.opacity(0.12))
                 .cornerRadius(6)
             }
             .buttonStyle(.plain)
-        }
-    }
-
-    private var activeBody: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(pomodoro.primaryClockDisplay)
-                    .font(.system(size: compact ? 20 : 22, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(pomodoro.isOvertime ? .orange : .primary)
-
-                Spacer()
-
-                Text("/ \(FocusDurationFormat.clock(pomodoro.plannedSeconds))")
-                    .font(.system(size: 10))
-                    .monospacedDigit()
-                    .foregroundColor(.secondary)
-            }
-
-            ProgressView(value: pomodoro.progress)
-                .progressViewStyle(.linear)
-                .tint(statusColor)
-                .controlSize(.small)
-
-            HStack(spacing: 6) {
-                Button(action: { pomodoro.togglePause() }) {
-                    Image(systemName: pomodoro.isPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 10))
-                        .frame(width: 24, height: 22)
-                        .background(Color.secondary.opacity(0.14))
-                        .cornerRadius(5)
-                }
-                .buttonStyle(.plain)
-                .help(pomodoro.isPaused ? langManager.text(.resume) : langManager.text(.pause))
-
-                let isFocus = pomodoro.activeKind == .focus
-                Button(action: { isFocus ? pomodoro.startBreak() : pomodoro.startFocus() }) {
-                    HStack(spacing: 3) {
-                        Image(systemName: isFocus ? "cup.and.saucer.fill" : "play.fill")
-                            .font(.system(size: 9))
-                        Text(langManager.text(isFocus ? .takeBreak : .backToWork))
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 22)
-                    .background(isFocus ? (pomodoro.isOvertime ? Color.orange : Color.green.opacity(0.85)) : Color.accentColor)
-                    .foregroundColor(.white)
-                    .cornerRadius(5)
-                }
-                .buttonStyle(.plain)
-
-                Button(action: { pomodoro.stopAndSave() }) {
-                    Image(systemName: "stop.fill")
-                        .font(.system(size: 9))
-                        .frame(width: 24, height: 22)
-                        .background(Color.secondary.opacity(0.14))
-                        .cornerRadius(5)
-                }
-                .buttonStyle(.plain)
-                .help(langManager.text(.finishSave))
-            }
+            .help(langManager.text(.startFocus))
         }
     }
 
@@ -260,10 +188,23 @@ public struct PomodoroControlCard: View {
             )
 
             HStack(spacing: 6) {
-                presetButton(focus: 15, breakMins: 5)
-                presetButton(focus: 25, breakMins: 5)
-                presetButton(focus: 45, breakMins: 10)
-                presetButton(focus: 50, breakMins: 10)
+                ForEach([(15, 5), (25, 5), (45, 10), (50, 10)], id: \.0) { focus, brk in
+                    let active = pomodoro.focusMinutes == focus && pomodoro.breakMinutes == brk
+                    Button(action: {
+                        pomodoro.focusMinutes = focus
+                        pomodoro.breakMinutes = brk
+                    }) {
+                        Text("\(focus)/\(brk)")
+                            .font(.system(size: 10, weight: .medium))
+                            .monospacedDigit()
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(active ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                            .foregroundColor(active ? .accentColor : .primary)
+                            .cornerRadius(5)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .padding(12)
@@ -284,24 +225,5 @@ public struct PomodoroControlCard: View {
             }
             .controlSize(.small)
         }
-    }
-
-    @ViewBuilder
-    private func presetButton(focus: Int, breakMins: Int) -> some View {
-        let active = pomodoro.focusMinutes == focus && pomodoro.breakMinutes == breakMins
-        Button(action: {
-            pomodoro.focusMinutes = focus
-            pomodoro.breakMinutes = breakMins
-        }) {
-            Text("\(focus)/\(breakMins)")
-                .font(.system(size: 10, weight: .medium))
-                .monospacedDigit()
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(active ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
-                .foregroundColor(active ? .accentColor : .primary)
-                .cornerRadius(5)
-        }
-        .buttonStyle(.plain)
     }
 }

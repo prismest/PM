@@ -56,6 +56,14 @@ public final class TaskStore: ObservableObject {
         self.tasks = db.fetchAllTasks()
     }
 
+    public var pendingTasksCount: Int {
+        tasks.reduce(0) { $0 + ($1.isCompleted ? 0 : 1) }
+    }
+
+    public func recommendedTask(now: Date = Date()) -> RecommendedTask? {
+        NextTaskRecommender.recommend(from: tasks, now: now)
+    }
+
     public var filteredTasks: [TaskItem] {
         var result = tasks
 

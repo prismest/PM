@@ -8,7 +8,6 @@ public enum AppLanguage: String, CaseIterable, Identifiable {
 }
 
 public enum L10nKey {
-    case taskCount(Int)
     case searchPlaceholder
     case aiChat
     case newChat
@@ -28,7 +27,6 @@ public enum L10nKey {
     case roleHint
     case openMainWindow
     case quit
-    case pomodoroTitle
     case focusLabel
     case breakLabel
     case overtimeLabel
@@ -37,8 +35,8 @@ public enum L10nKey {
     case resume
     case pause
     case finishSave
-    case freeFocus
     case focusInsights
+    case focusNow
     case backToWork
 }
 
@@ -65,7 +63,6 @@ public final class LanguageManager: ObservableObject {
     public func text(_ key: L10nKey) -> String {
         let isTh = currentLanguage == .th
         switch key {
-        case .taskCount(let n): return isTh ? "\(n) งาน" : "\(n) tasks"
         case .searchPlaceholder: return isTh ? "ค้นหางาน..." : "Search tasks..."
         case .aiChat: return isTh ? "คุยกับ AI" : "AI Chat"
         case .newChat: return isTh ? "แชทใหม่" : "New Chat"
@@ -85,7 +82,6 @@ public final class LanguageManager: ObservableObject {
         case .roleHint: return isTh ? "บทบาท บุคลิก และคำสั่งตั้งต้น (มีผลเมื่อเริ่มแชทใหม่)" : "Persona and instructions (Applies to new chats)"
         case .openMainWindow: return isTh ? "เปิดหน้าต่างหลัก" : "Open Main Window"
         case .quit: return isTh ? "ออกจากโปรแกรม" : "Quit Waan"
-        case .pomodoroTitle: return isTh ? "จับเวลาโฟกัส" : "Focus Timer"
         case .focusLabel: return isTh ? "โฟกัส" : "Focus"
         case .breakLabel: return isTh ? "พัก" : "Break"
         case .overtimeLabel: return isTh ? "เลยเป้า" : "Overtime"
@@ -94,8 +90,8 @@ public final class LanguageManager: ObservableObject {
         case .resume: return isTh ? "ทำต่อ" : "Resume"
         case .pause: return isTh ? "หยุดชั่วคราว" : "Pause"
         case .finishSave: return isTh ? "จบ" : "Stop"
-        case .freeFocus: return isTh ? "โฟกัสอิสระ" : "Free Focus"
         case .focusInsights: return isTh ? "สถิติเวลา" : "Time Insights"
+        case .focusNow: return isTh ? "ทำตอนนี้" : "Right Now"
         case .backToWork: return isTh ? "เริ่มงานต่อ" : "Back to Work"
         }
     }

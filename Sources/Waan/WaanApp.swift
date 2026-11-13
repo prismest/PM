@@ -49,7 +49,7 @@ struct WaanApp: App {
     var body: some Scene {
         Window("Waan", id: "main-window") {
             MainWindowView(store: store, mcpServer: mcpServer)
-                .frame(minWidth: 780, minHeight: 540)
+                .frame(minWidth: 720, minHeight: 480)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
