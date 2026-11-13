@@ -177,17 +177,47 @@ public struct MainWindowView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(store.filteredTasks) { task in
-                            TaskRowView(store: store, task: task)
-                            Divider()
-                                .opacity(0.3)
-                                .padding(.leading, 32)
+                    if store.selectedFilter == .completed {
+                        LazyVStack(alignment: .leading, spacing: 18) {
+                            ForEach(store.groupedCompletedTasks) { group in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        Text(group.bucket.localizedTitle(for: langManager.currentLanguage))
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.secondary)
+                                        Text("\(group.tasks.count)")
+                                            .font(.system(size: 11, weight: .medium))
+                                            .monospacedDigit()
+                                            .foregroundColor(.secondary.opacity(0.6))
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.top, 4)
+
+                                    LazyVStack(spacing: 0) {
+                                        ForEach(group.tasks) { task in
+                                            TaskRowView(store: store, task: task)
+                                            Divider()
+                                                .opacity(0.3)
+                                                .padding(.leading, 32)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        LazyVStack(spacing: 0) {
+                            ForEach(store.filteredTasks) { task in
+                                TaskRowView(store: store, task: task)
+                                Divider()
+                                    .opacity(0.3)
+                                    .padding(.leading, 32)
+                            }
                         }
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 6)
                 }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 6)
             }
         }
     }
